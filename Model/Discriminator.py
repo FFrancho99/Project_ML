@@ -27,3 +27,5 @@ class Discriminator(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         return x
+
+    print('Adeline est cool ou pas?')
