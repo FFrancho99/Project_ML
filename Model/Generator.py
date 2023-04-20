@@ -22,8 +22,14 @@ class Generator(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True)
         )
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(4, 4), stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True)
+        )
 
     def forwardPropagation(self, x):
         x = self.layer1(x)
         x = self.layer2(x)
+        x = self.layer3(x)
         return x
