@@ -10,27 +10,66 @@ from torchvision import transforms
 
 
 class Generator(nn.Module):
-    def __init__(self):
-        super(Generator,self).__init__()
+    def __init__(self, mod_opt):
+        super(Generator, self).__init__()
 
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(4, 4), stride=2, padding=1),
-            nn.ReLU(inplace=True)
+        self.encoder = nn.Sequential(
+            # encoder: conv+AF+pool (pool done with the stride 2 in conv)
+            # 128x128 x nC
+            nn.Conv2d(mod_opt.nC, mod_opt.neF, kernel_size=(4, 4), stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            # 64x64 x neF
+            nn.Conv2d(mod_opt.neF, mod_opt.neF, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.neF),
+            nn.ReLU(True),
+            # 32x32 x neF
+            nn.Conv2d(mod_opt.neF, mod_opt.neF * 2, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.neF * 2),
+            nn.ReLU(True),
+            # 16x16 x neF*2
+            nn.Conv2d(mod_opt.neF * 2, mod_opt.neF * 4, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.neF * 4),
+            nn.ReLU(True),
+            # 8x8 x neF*4
+            nn.Conv2d(mod_opt.neF * 4, mod_opt.neF * 8, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.neF * 8),
+            nn.ReLU(True),
+            # 4x4 x neF*8
+            nn.Conv2d(mod_opt.neF * 8, mod_opt.nbF, 4, 1, 0),
+            nn.BatchNorm2d(mod_opt.nbF),
+            nn.ReLU(True)
+            # 1x1 x nbF
         )
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(4, 4), stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True)
-        )
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(4, 4), stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True)
 
+        self.decoder = nn.Sequential(
+            # 1x1 x nbF
+            nn.ConvTranspose2d(mod_opt.nbF, mod_opt.ndF * 8, 4, 1, 0),
+            nn.BatchNorm2d(mod_opt.nbF),
+            nn.ReLU(True),
+            # 4x4 x ndF*8
+            nn.ConvTranspose2d(mod_opt.ndF * 8, mod_opt.ndF * 4, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.nbF),
+            nn.ReLU(True),
+            # 8x8 x ndF*4
+            nn.ConvTranspose2d(mod_opt.ndF * 4, mod_opt.ndF * 2, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.nbF),
+            nn.ReLU(True),
+            # 16x16 x ndF*2
+            nn.ConvTranspose2d(mod_opt.ndF * 2, mod_opt.ndF, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.nbF),
+            nn.ReLU(True),
+            # 32x32 x ndF
+            nn.ConvTranspose2d(mod_opt.ndF, mod_opt.ndF, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.nbF),
+            nn.ReLU(True),
+            # 64x64 x ndF
+            nn.ConvTranspose2d(mod_opt.ndF, mod_opt.nc, 4, 2, 1),
+            nn.BatchNorm2d(mod_opt.nbF)
+            # 128x128 x nc
         )
 
     def forwardPropagation(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        x = self.encoder(x)
+        x = self.decoder(x)
+        x = torch.tanh(x)
         return x
