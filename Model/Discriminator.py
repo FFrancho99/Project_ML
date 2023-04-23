@@ -8,7 +8,7 @@ import torch.optim as optim
 import torchvision
 import random
 
-
+#test commit
 class Discriminator(nn.Module):
     def __init__(self, input_channels):
         super().__init__()
