@@ -3,19 +3,15 @@ import os
 import tensorflow
 import matplotlib.pyplot as plt
 
-def cropPatches(images, x1, x2, deltax1, deltax2, y1, y2, deltay1, deltay2): # Add black patch to image
+def cropPatches(images, x1, x2, deltax1, deltax2): # Add black patch to image
     imgsCropPatch = np.zeros(images.shape, dtype = np.float32)
     for img in range(images.shape[0]):
         image = images[img]
         x_values = (x1, x2)
-        y_values = (y1,y2)
         x = np.random.randint(x_values[0], x_values[1])
         delta_x = np.random.randint(deltax1, deltax2)
-        y = np.random.randint(y_values[0], y_values[1])
-        delta_y = np.random.randint(deltay1, deltay2)
-        image[x:x+delta_x, y:y+delta_y] = 0
+        image[x:x+delta_x, x:x+delta_x] = 0
         imgsCropPatch[img] = image
-
     return imgsCropPatch
 
 def loadImages(dataPath,imgSize, btchSize): # Load Images from dataset
@@ -43,28 +39,6 @@ def saveImgs(imgs, epoch): # Save generated images
         plt.imsave(path + "image" + str(epoch) + "_" + str(i+1) + ".jpg", img)
 
 
-### PREPROCESSING ###
 
-imgSize = 128
-btchSize = 64
-trainDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/train',imgSize,btchSize)
-trainDatasetCrop = cropPatches(next(trainDataset), 40, 90, 15, 30, 40, 90, 15, 30)
-trainDatasetCrop = scalingToOne(trainDatasetCrop)
-trainDatasetCrop = descaling(trainDatasetCrop)
-
-valDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/val',imgSize,btchSize)
-valDatasetCrop = cropPatches(next(valDataset), 40, 90, 15, 30, 40, 90, 15, 30)
-valDatasetCrop = scalingToOne(valDatasetCrop)
-valDatasetCrop = descaling(valDatasetCrop)
-
-testDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/test',imgSize,btchSize)
-testDatasetCrop = cropPatches(next(testDataset), 40, 90, 15, 30, 40, 90, 15, 30)
-testDatasetCrop = scalingToOne(testDatasetCrop)
-testDatasetCrop = descaling(testDatasetCrop)
-
-epochs = 1
-saveImgs(trainDatasetCrop,epochs)
-#saveImgs(valDatasetCrop,epochs)
-#saveImgs(testDatasetCrop,epochs)
 
 
