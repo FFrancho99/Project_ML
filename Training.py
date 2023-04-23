@@ -1,3 +1,5 @@
+import torchvision.datasets
+
 from Model import Generator
 from Model import Discriminator
 import os
@@ -5,50 +7,132 @@ import numpy as np
 import matplotlib.pyplot as plt
 import uuid
 import torch
+import torch.optim as optim
 from torch import nn
 from torch.utils.data import DataLoader
-from torchvision.datasets import MNIST
+from torchvision.datasets import ImageNet
 from torchvision import transforms
-import Preprocessing
+from Preprocessing import *
 
-### PREPROCESSING ###
+# ### PREPROCESSING ###
+#
+# imgSize = 128
+batch_size = 64
+# trainDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/train', imgSize, btchSize)
+# trainLoader, trainLoaderCrop = cropPatches(trainDataset, 64, 64)
+# trainLoaderCrop = scalingToOne(trainLoaderCrop)
+# # trainLoaderCrop = descaling(trainLoaderCrop)
+#
+# valDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/val', imgSize, btchSize)
+# valLoader, valLoaderCrop = cropPatches(valDataset, 64, 64)
+# valLoaderCrop = scalingToOne(valLoaderCrop)
+# # valLoaderCrop = descaling(valLoaderCrop)
+#
+# testDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/test', imgSize, btchSize)
+# testLoader, testLoaderCrop = cropPatches(testDataset, 64, 64)
+# testLoaderCrop = scalingToOne(testLoaderCrop)
+# # testLoaderCrop = descaling(testLoaderCrop)
+#
+# saveImgs(trainLoaderCrop, 1)
 
-imgSize = 128
-btchSize = 64
-trainDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/train',imgSize,btchSize)
-trainDatasetCrop = cropPatches(next(trainDataset), 40, 90, 15, 30)
-trainDatasetCrop = scalingToOne(trainDatasetCrop)
-trainDatasetCrop = descaling(trainDatasetCrop)
+### Load dataset ###
+transform = torchvision.transforms.Compose(
+    [torchvision.transforms.ToTensor(),
+     torchvision.transforms.Normalize((0.5), (0.5))])
 
-valDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/val',imgSize,btchSize)
-valDatasetCrop = cropPatches(next(valDataset), 40, 90, 15, 30)
-valDatasetCrop = scalingToOne(valDatasetCrop)
-valDatasetCrop = descaling(valDatasetCrop)
+trainset = torchvision.datasets.ImageNet(root='./data', train=True,
+                                         download=True, transform=transform)
+valset = torchvision.datasets.ImageNet(root='./data', train=False,
+                                       download=True, transform=transform)
 
-testDataset = loadImages('archive/tiny-imagenet-200/tiny-imagenet-200/test',imgSize,btchSize)
-testDatasetCrop = cropPatches(next(testDataset), 40, 90, 15, 30)
-testDatasetCrop = scalingToOne(testDatasetCrop)
-testDatasetCrop = descaling(testDatasetCrop)
+print(trainset)
+
+# Create dataloaders
+trainLoader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                          shuffle=True)
+valLoader = torch.utils.data.DataLoader(valset, batch_size=batch_size,
+                                        shuffle=False)
 
 
-saveImgs(trainDatasetCrop, epochs)
+### Instanciate model  ###
 
-epochs = 50
+generator_options = Generator.GeneratorOptions
+generator = Generator.Generator(generator_options)
+discriminator = Discriminator.Discriminator(3)
+
+### Instanciate optimizer  ###
+
+nb_epochs = 1
 batchSize = 64
 learningRate = 0.0001
 
-model_options.nC = 3 #rgb
-model_options.neF = 64
-model_options.nbF = 4000
-model_options.nF = 64
+criterion = nn.BCELoss()
+optimizer = optim.Adam(discriminator.parameters(), lr=learningRate)
 
-generator = Generator.Generator(model_options)
-discriminator = Discriminator.Discriminator(3)
+### Training ###
+device = 'cpu'
+tr_losses = np.zeros(nb_epochs)
+val_losses = np.zeros(nb_epochs)
 
+for epoch_nr in range(nb_epochs):
+
+    print("Epoch {}:".format(epoch_nr))
+
+    # Train model
+    running_loss = 0.0
+    for batch_im_ori, _ in trainLoader:
+
+        # remove (crop) patch from image
+        batch_im_crop = cropPatches(batch_im_ori, 64, 64)
+
+        # Put data on device
+        batch_im_ori = batch_im_ori.to(device)
+        batch_im_crop = batch_im_crop.to(device)
+
+        # Predict and get loss
+        predicted_patch = generator(batch_im_crop)
+        loss = criterion(predicted_patch, batch_im_ori)  # batch_data = label here
+
+        # Update model
+        optimizer.zero_grad()  # re-initialize the gradient to zero
+        loss.backward()
+        optimizer.step()
+
+        # Keep running statistics
+        running_loss += loss.item()
+
+    # Print results
+    tr_loss = running_loss / len(trainLoader.dataset)
+    print('>> TRAIN: Epoch {} completed | tr_loss: {:.4f}'.format(
+        epoch_nr, running_loss / len(trainLoader.dataset)))
+
+    # Get validation results
+    running_loss = 0
+
+    with torch.no_grad():
+        for batch_im_ori, batch_im_crop in valLoader:
+            # Put data on device
+            batch_im_ori = batch_im_ori.to(device)
+            batch_im_crop = batch_im_crop.to(device)
+
+            # Predict and get loss
+            predicted_patch = generator(batch_im_crop)
+            loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
+
+            # Keep running statistics
+            running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
+
+    val_loss = running_loss / len(valLoader.dataset)
+    print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
+
+    tr_losses[epoch_nr] = tr_loss
+    val_losses[epoch_nr] = val_loss
+
+print('Training finished')
 
 
 def imshow(img):
-    img = img / 2 + 0.5     # unnormalize to show images correctly
+    img = img / 2 + 0.5  # unnormalize to show images correctly
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
@@ -57,111 +141,3 @@ def imshow(img):
 def compute_run_acc(logits, labels):
     _, pred = torch.max(logits.data, 1)
     return (pred == labels).sum().item()
-
-
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-batch_size = 8
-num_epochs = 10
-patch_size = 12
-device = 'cuda:0'
-
-transform = torchvision.transforms.Compose(
-    [torchvision.transforms.ToTensor(),
-     torchvision.transforms.Normalize((0.5), (0.5))])
-
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transform)
-valset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                       download=True, transform=transform)
-
-classes = ('True', 'False')
-
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                          shuffle=True)
-valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size,
-                                         shuffle=False)
-
-learning_rate = 0.0002
-beta1 = 0.5
-discriminator = Discriminator(3).to(device)
-criterion = nn.BCELoss()
-optimizer = optim.Adam(discriminator.parameters(), lr=learning_rate, betas=(beta1, 0.999))
-
-blur = torchvision.transforms.GaussianBlur(5)
-
-for epoch_nbr in range(num_epochs):
-    print("Epoch {}:".format(epoch_nbr))
-    running_loss = 0.0
-    for batch_data, _ in trainloader:
-
-        batch_labels = torch.ones([batch_size, 1], dtype=torch.float)
-        batch_labels = batch_labels.to(device)
-        batch_data = batch_data.to(device)
-
-        pred = discriminator(batch_data)
-        loss = criterion(pred, batch_labels)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item()
-
-        ind1 = random.randrange(0, 31-patch_size)
-        ind2 = random.randrange(0, 31 - patch_size)
-        batch_labels = torch.zeros([batch_size, 1], dtype=torch.float).to(device)
-
-        for i in range(batch_size):
-            batch_data = batch_data.to('cpu')
-            image = batch_data[i, :, :, :]
-            image = blur(image)
-            batch_data[i, :, ind1:ind1+patch_size-1, ind2:ind2+patch_size-1] = image[:, ind1:ind1+patch_size-1,
-                                                                                ind2:ind2+patch_size-1]
-
-        batch_data = batch_data.to(device)
-        pred = discriminator(batch_data)
-        loss = criterion(pred, batch_labels)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item()
-
-    print('>> TRAIN: Epoch {} completed | tr_loss: {:.4f}'.format(
-        epoch_nbr, running_loss / (2*len(trainloader.dataset))))
-
-    running_loss = 0.0
-    running_acc = 0.0
-
-    #VALIDATION
-    for batch_data, _ in valloader:
-        batch_data = batch_data.to(device)
-        batch_labels = torch.ones([batch_size, 1], dtype=torch.float)
-        batch_labels = batch_labels.to(device)
-
-        pred = discriminator(batch_data)
-        pred = torch.round(pred)
-        running_acc += sum(pred == batch_labels).item()
-
-        ind1 = random.randrange(0, 31 - patch_size)
-        ind2 = random.randrange(0, 31 - patch_size)
-        batch_labels = torch.zeros([batch_size, 1], dtype=torch.float).to(device)
-
-        for i in range(batch_size):
-            batch_data = batch_data.to('cpu')
-            image = batch_data[i, :, :, :]
-            image = blur(image)
-            batch_data[i, :, ind1:ind1 + patch_size - 1, ind2:ind2 + patch_size - 1] = image[:,
-                                                                                       ind1:ind1 + patch_size - 1,
-                                                                                       ind2:ind2 + patch_size - 1]
-
-        batch_data = batch_data.to(device)
-        pred = discriminator(batch_data)
-        pred = torch.round(pred)
-        running_acc += sum(pred == batch_labels).item()
-
-    val_acc = 100*running_acc /( 2*len(valloader.dataset))
-    print('>> VALIDATION: Epoch {} | val_acc: {:.2f}%'.format(epoch_nbr, val_acc))
