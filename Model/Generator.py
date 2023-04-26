@@ -11,15 +11,15 @@ from torchvision import transforms
 
 class GeneratorOptions:
     nC = 3  # rgb
-    neF = 64  # nb encoder features
-    nbF = 4000  # nb bottleneck features
-    ndF = 64  # nb decoder features
+    neF = 16  # nb encoder features
+    nbF = 1000  # nb bottleneck features
+    ndF = 16  # nb decoder features
 
     def __init__(self):
         self.nC = 3  # rgb
-        self.neF = 64  # nb encoder features
-        self.nbF = 4000  # nb bottleneck features
-        self.ndF = 64  # nb decoder features
+        self.neF = 16  # nb encoder features
+        self.nbF = 1000  # nb bottleneck features
+        self.ndF = 16  # nb decoder features
 
 
 class Generator(nn.Module):
@@ -29,22 +29,22 @@ class Generator(nn.Module):
         self.encoder = nn.Sequential(
             # encoder: conv+AF+pool (pool done with the stride 2 in conv)
             # 128x128 x nC
-            nn.Conv2d(mod_opt.nC, mod_opt.neF, kernel_size=(4, 4), stride=2, padding=1),
+            nn.Conv2d(mod_opt.nC, mod_opt.neF, kernel_size=(4, 4), stride=2, padding=0),
             nn.ReLU(inplace=True),
             # 64x64 x neF
-            nn.Conv2d(mod_opt.neF, mod_opt.neF, 4, 2, 1),
+            nn.Conv2d(mod_opt.neF, mod_opt.neF, 4, 2, 0),
             nn.BatchNorm2d(mod_opt.neF),
             nn.ReLU(True),
             # 32x32 x neF
-            nn.Conv2d(mod_opt.neF, mod_opt.neF * 2, 4, 2, 1),
+            nn.Conv2d(mod_opt.neF, mod_opt.neF * 2, 4, 2, 0),
             nn.BatchNorm2d(mod_opt.neF * 2),
             nn.ReLU(True),
             # 16x16 x neF*2
-            nn.Conv2d(mod_opt.neF * 2, mod_opt.neF * 4, 4, 2, 1),
+            nn.Conv2d(mod_opt.neF * 2, mod_opt.neF * 4, 4, 2, 0),
             nn.BatchNorm2d(mod_opt.neF * 4),
             nn.ReLU(True),
             # 8x8 x neF*4
-            nn.Conv2d(mod_opt.neF * 4, mod_opt.neF * 8, 4, 2, 1),
+            nn.Conv2d(mod_opt.neF * 4, mod_opt.neF * 8, 4, 2, 0),
             nn.BatchNorm2d(mod_opt.neF * 8),
             nn.ReLU(True),
             # 4x4 x neF*8
@@ -76,12 +76,12 @@ class Generator(nn.Module):
             nn.BatchNorm2d(mod_opt.nbF),
             nn.ReLU(True),
             # 64x64 x ndF
-            nn.ConvTranspose2d(mod_opt.ndF, mod_opt.nc, 4, 2, 1),
+            nn.ConvTranspose2d(mod_opt.ndF, mod_opt.nC, 4, 2, 1),
             nn.BatchNorm2d(mod_opt.nbF)
             # 64x64 x nc
         )
 
-    def forwardPropagation(self, x):
+    def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
         x = torch.tanh(x)

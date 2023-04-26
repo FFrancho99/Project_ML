@@ -40,10 +40,9 @@ transform = torchvision.transforms.Compose(
     [torchvision.transforms.ToTensor(),
      torchvision.transforms.Normalize((0.5), (0.5))])
 
-trainset = torchvision.datasets.ImageNet(root='./data', train=True,
-                                         download=True, transform=transform)
-valset = torchvision.datasets.ImageNet(root='./data', train=False,
-                                       download=True, transform=transform)
+
+trainset = torchvision.datasets.ImageFolder(root='archive/tiny-imagenet-200/tiny-imagenet-200/train', transform=transform)
+valset = torchvision.datasets.ImageFolder(root='archive/tiny-imagenet-200/tiny-imagenet-200/val', transform=transform)
 
 print(trainset)
 
@@ -83,7 +82,7 @@ for epoch_nr in range(nb_epochs):
     for batch_im_ori, _ in trainLoader:
 
         # remove (crop) patch from image
-        batch_im_crop = cropPatches(batch_im_ori, 64, 64)
+        batch_im_crop = cropPatches(batch_im_ori, 16, 16)
 
         # Put data on device
         batch_im_ori = batch_im_ori.to(device)
