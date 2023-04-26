@@ -44,7 +44,6 @@ class Discriminator(nn.Module):
         logits = self.layer4(self.layer3(logits))
         return logits
 
-
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize to show images correctly
     npimg = img.numpy()
@@ -61,7 +60,7 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 batch_size = 8
-num_epochs = 20
+num_epochs = 10
 patch_size = 12
 device = 'cuda:0'
 

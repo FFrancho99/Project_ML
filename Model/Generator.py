@@ -9,10 +9,23 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 
 
+class GeneratorOptions:
+    nC = 3  # rgb
+    neF = 64  # nb encoder features
+    nbF = 4000  # nb bottleneck features
+    ndF = 64  # nb decoder features
+
+    def __init__(self):
+        self.nC = 3  # rgb
+        self.neF = 64  # nb encoder features
+        self.nbF = 4000  # nb bottleneck features
+        self.ndF = 64  # nb decoder features
+
+
 class Generator(nn.Module):
     def __init__(self, mod_opt):
+        self.mod_opt = mod_opt
         super(Generator, self).__init__()
-
         self.encoder = nn.Sequential(
             # encoder: conv+AF+pool (pool done with the stride 2 in conv)
             # 128x128 x nC
@@ -44,15 +57,15 @@ class Generator(nn.Module):
         self.decoder = nn.Sequential(
             # 1x1 x nbF
             nn.ConvTranspose2d(mod_opt.nbF, mod_opt.ndF * 8, 4, 1, 0),
-            nn.BatchNorm2d(mod_opt.nbF*8),
+            nn.BatchNorm2d(mod_opt.nbF * 8),
             nn.ReLU(True),
             # 4x4 x ndF*8
             nn.ConvTranspose2d(mod_opt.ndF * 8, mod_opt.ndF * 4, 4, 2, 1),
-            nn.BatchNorm2d(mod_opt.nbF*4),
+            nn.BatchNorm2d(mod_opt.nbF * 4),
             nn.ReLU(True),
             # 8x8 x ndF*4
             nn.ConvTranspose2d(mod_opt.ndF * 4, mod_opt.ndF * 2, 4, 2, 1),
-            nn.BatchNorm2d(mod_opt.nbF*2),
+            nn.BatchNorm2d(mod_opt.nbF * 2),
             nn.ReLU(True),
             # 16x16 x ndF*2
             nn.ConvTranspose2d(mod_opt.ndF * 2, mod_opt.ndF, 4, 2, 1),

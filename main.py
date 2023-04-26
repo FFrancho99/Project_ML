@@ -17,7 +17,7 @@ num_epochs = 2
 device = 'cuda:0'
 print(torch.cuda.is_available())
 print(torch.__version__)
-#device = 'cpu'
+device = 'cpu'
 num_classes = 10
 noise_var = 0.5
 
