@@ -62,7 +62,7 @@ class Discriminator(nn.Module):
 
 
 
-def imshow(img):
+"""def imshow(img):
     img = img / 2 + 0.5     # unnormalize to show images correctly
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
@@ -180,3 +180,5 @@ for epoch_nbr in range(num_epochs):
 
     val_acc = 100*running_acc /( 2*len(valloader.dataset))
     print('>> VALIDATION: Epoch {} | val_acc: {:.2f}%'.format(epoch_nbr, val_acc))
+
+"""
