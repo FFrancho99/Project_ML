@@ -8,29 +8,43 @@ import torch.optim as optim
 import torchvision
 import random
 
-
+#test commit
 class Discriminator(nn.Module):
-    def __init__(self, input_channels):
+    def __init__(self, input_channels, size):
         super().__init__()
+        self.input_size= size
         self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels=input_channels, out_channels=6,
-                      kernel_size=(5, 5)),
+            nn.Conv2d(in_channels=input_channels, out_channels=6, kernel_size=(5, 5), padding=2),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        )  # 6@14x14
+            nn.MaxPool2d(kernel_size=(2,2), stride=(2,2))
+        )
 
         self.layer2 = nn.Sequential(
-            nn.Conv2d(in_channels=6, out_channels=16,
-                      kernel_size=(5, 5)),
+            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(5, 5), padding=2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        )  # 16@5x5
-        self.layer3 = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(16 * 5 * 5, 120),
-            nn.ReLU(),
         )
-        self.layer4 = nn.Sequential(
+
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(in_channels=16, out_channels=32,
+                          kernel_size=(5, 5), padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        )
+
+        if(size == 64):
+            self.layer4 = nn.Sequential(
+                nn.Conv2d(in_channels=32, out_channels=64,
+                          kernel_size=(5, 5), padding=2),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+            )
+
+
+        self.FClayers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(size * 4 * 4, 120),
+            nn.ReLU(),
             nn.Linear(120, 84),
             nn.ReLU(),
             nn.Linear(84, 10),
@@ -40,11 +54,15 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x):
-        logits = self.layer2(self.layer1(x))
-        logits = self.layer4(self.layer3(logits))
+        logits = self.layer3(self.layer2(self.layer1(x)))
+        if(self.input_size == 64):
+            logits = self.layer4(logits)
+        logits = self.FClayers(logits)
         return logits
 
-def imshow(img):
+
+
+"""def imshow(img):
     img = img / 2 + 0.5     # unnormalize to show images correctly
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
@@ -83,7 +101,11 @@ valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size,
 
 learning_rate = 0.0002
 beta1 = 0.5
+
+discriminator = Discriminator(input_channels=3, size=32).to(device)
+=======
 discriminator = Discriminator(3) #to(device)
+
 criterion = nn.BCELoss()
 optimizer = optim.Adam(discriminator.parameters(), lr=learning_rate, betas=(beta1, 0.999))
 
@@ -163,4 +185,7 @@ for epoch_nbr in range(num_epochs):
 
     val_acc = 100*running_acc /( 2*len(valloader.dataset))
     print('>> VALIDATION: Epoch {} | val_acc: {:.2f}%'.format(epoch_nbr, val_acc))
+
+
+
 """
