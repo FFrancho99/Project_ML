@@ -77,10 +77,11 @@ def compute_run_acc(logits, labels):
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+"""
 batch_size = 8
-num_epochs = 20
+num_epochs = 10
 patch_size = 12
-device = 'cuda:0'
+device = 'cpu'
 
 transform = torchvision.transforms.Compose(
     [torchvision.transforms.ToTensor(),
@@ -100,7 +101,11 @@ valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size,
 
 learning_rate = 0.0002
 beta1 = 0.5
+
 discriminator = Discriminator(input_channels=3, size=32).to(device)
+=======
+discriminator = Discriminator(3) #to(device)
+
 criterion = nn.BCELoss()
 optimizer = optim.Adam(discriminator.parameters(), lr=learning_rate, betas=(beta1, 0.999))
 
@@ -180,5 +185,7 @@ for epoch_nbr in range(num_epochs):
 
     val_acc = 100*running_acc /( 2*len(valloader.dataset))
     print('>> VALIDATION: Epoch {} | val_acc: {:.2f}%'.format(epoch_nbr, val_acc))
+
+
 
 """
