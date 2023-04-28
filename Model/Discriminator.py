@@ -13,40 +13,38 @@ class Discriminator(nn.Module):
     def __init__(self, input_channels, size):
         super().__init__()
         self.input_size= size
-        if(size == 64):
-            self.layer1 = nn.Sequential(
-                nn.Conv2d(in_channels=input_channels, out_channels=6, kernel_size=(5, 5)),
-                nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2,2), stride=(2,2))
-            )#6@30x30
-
-            self.layer2 = nn.Sequential(
-                nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(3, 3)),
-                nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-            )#16@14x14
-        else:
-            self.layer1 = nn.Sequential(
-                nn.Conv2d(in_channels=input_channels, out_channels=6,
-                          kernel_size=(5, 5)),
-                nn.ReLU(),
-                nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-            )# 6@14x14
-
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(in_channels=6, out_channels=16,
-                      kernel_size=(5, 5)),
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(in_channels=input_channels, out_channels=6, kernel_size=(5, 5), padding=2),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        )# 16@5x5
-
-        self.layer4 = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(16 * 5 * 5, 120),
-            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(2,2), stride=(2,2))
         )
 
-        self.layer5 = nn.Sequential(
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(5, 5), padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        )
+
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(in_channels=16, out_channels=32,
+                          kernel_size=(5, 5), padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        )
+
+        if(size == 64):
+            self.layer4 = nn.Sequential(
+                nn.Conv2d(in_channels=32, out_channels=64,
+                          kernel_size=(5, 5), padding=2),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+            )
+
+
+        self.FClayers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(size * 4 * 4, 120),
+            nn.ReLU(),
             nn.Linear(120, 84),
             nn.ReLU(),
             nn.Linear(84, 10),
@@ -56,17 +54,12 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x):
-        logits = self.layer1(x)
+        logits = self.layer3(self.layer2(self.layer1(x)))
         if(self.input_size == 64):
-            logits = self.layer2(logits)
-            logits = self.layer3(logits)
             logits = self.layer4(logits)
-            logits = self.layer5(logits)
-        else:
-            logits = self.layer3(logits)
-            logits = self.layer4(logits)
-            logits = self.layer5(logits)
+        logits = self.FClayers(logits)
         return logits
+
 
 
 def imshow(img):
