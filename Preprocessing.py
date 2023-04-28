@@ -6,12 +6,14 @@ import matplotlib.pyplot as plt
 
 
 def cropPatches(images, x, deltax):  # Add black patch to image
-    imgsCropPatch = np.zeros(images.shape, dtype=np.float32)
-    for img in range(images.shape[0]):
-        image = images[img]
-        image[x - (deltax // 2):x + (deltax // 2), x - (deltax // 2):x + (deltax // 2)] = 0
-        imgsCropPatch[img] = image
-    return torch.from_numpy(imgsCropPatch)
+
+    x1 = x - (deltax // 2)
+    x2 = x + (deltax // 2)
+    imgsCropPatch = images
+    patches = images[:, :, x1:x2, x1:x2]
+    imgsCropPatch[:, :, x1:x2, x1:x2] = 0
+
+    return imgsCropPatch, patches
 
 
 def loadImages(dataPath, imgSize, btchSize):  # Load Images from dataset

@@ -82,15 +82,17 @@ for epoch_nr in range(nb_epochs):
     for batch_im_ori, _ in trainLoader:
 
         # remove (crop) patch from image
-        batch_im_crop = cropPatches(batch_im_ori, 16, 16)
-
+        batch_im_crop, batch_patch_ori = cropPatches(batch_im_ori, 32, 32)
+        print(batch_im_crop.shape)
+        print(batch_patch_ori.shape)
         # Put data on device
         batch_im_ori = batch_im_ori.to(device)
         batch_im_crop = batch_im_crop.to(device)
 
         # Predict and get loss
         predicted_patch = generator(batch_im_crop)
-        loss = criterion(predicted_patch, batch_im_ori)  # batch_data = label here
+        print(predicted_patch.shape)
+        loss = criterion(predicted_patch, batch_patch_ori)  # batch_data = label here
 
         # Update model
         optimizer.zero_grad()  # re-initialize the gradient to zero
