@@ -10,19 +10,28 @@ import random
 
 #test commit
 class Discriminator(nn.Module):
-    def __init__(self, input_channels):
+    def __init__(self, input_channels, size):
         super().__init__()
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels=input_channels, out_channels=6, kernel_size=(5, 5)),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2,2), stride=(2,2))
-        )#6@30x30
+        self.input_size= size
+        if(size == 64):
+            self.layer1 = nn.Sequential(
+                nn.Conv2d(in_channels=input_channels, out_channels=6, kernel_size=(5, 5)),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(2,2), stride=(2,2))
+            )#6@30x30
 
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(3, 3)),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        )#16@14x14
+            self.layer2 = nn.Sequential(
+                nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(3, 3)),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+            )#16@14x14
+        else:
+            self.layer1 = nn.Sequential(
+                nn.Conv2d(in_channels=input_channels, out_channels=6,
+                          kernel_size=(5, 5)),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+            )# 6@14x14
 
         self.layer3 = nn.Sequential(
             nn.Conv2d(in_channels=6, out_channels=16,
@@ -47,9 +56,17 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x):
-        logits = self.layer2(self.layer1(x))
-        logits = self.layer4(self.layer3(logits))
-        return self.layer5(logits)
+        logits = self.layer1(x)
+        if(self.input_size == 64):
+            logits = self.layer2(logits)
+            logits = self.layer3(logits)
+            logits = self.layer4(logits)
+            logits = self.layer5(logits)
+        else:
+            logits = self.layer3(logits)
+            logits = self.layer4(logits)
+            logits = self.layer5(logits)
+        return logits
 
 
 def imshow(img):
