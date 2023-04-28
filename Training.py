@@ -57,7 +57,7 @@ valLoader = torch.utils.data.DataLoader(valset, batch_size=batch_size,
 
 generator_options = Generator.GeneratorOptions
 generator = Generator.Generator(generator_options)
-discriminator = Discriminator.Discriminator(3)
+discriminator = Discriminator.Discriminator(3,64)
 
 ### Instanciate optimizer  ###
 
@@ -83,15 +83,12 @@ for epoch_nr in range(nb_epochs):
 
         # remove (crop) patch from image
         batch_im_crop, batch_patch_ori = cropPatches(batch_im_ori, 32, 32)
-        print(batch_im_crop.shape)
-        print(batch_patch_ori.shape)
         # Put data on device
         batch_im_ori = batch_im_ori.to(device)
         batch_im_crop = batch_im_crop.to(device)
 
         # Predict and get loss
         predicted_patch = generator(batch_im_crop)
-        print(predicted_patch.shape)
         loss = criterion(predicted_patch, batch_patch_ori)  # batch_data = label here
 
         # Update model
