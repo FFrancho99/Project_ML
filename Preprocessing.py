@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import tensorflow
+import torch
 import matplotlib.pyplot as plt
 
 
@@ -8,9 +9,9 @@ def cropPatches(images, x, deltax):  # Add black patch to image
     imgsCropPatch = np.zeros(images.shape, dtype=np.float32)
     for img in range(images.shape[0]):
         image = images[img]
-        image[x - deltax / 2:x + deltax / 2, x - deltax / 2:x + deltax / 2] = 0
+        image[x - (deltax // 2):x + (deltax // 2), x - (deltax // 2):x + (deltax // 2)] = 0
         imgsCropPatch[img] = image
-    return imgsCropPatch
+    return torch.from_numpy(imgsCropPatch)
 
 
 def loadImages(dataPath, imgSize, btchSize):  # Load Images from dataset
