@@ -1,21 +1,23 @@
 import numpy as np
 import os
-import tensorflow
+#import tensorflow
 import torch
 import matplotlib.pyplot as plt
+from TrainingFunctions import imshow
+import torchvision.datasets
 
 
 def cropPatches(images, x, deltax):  # Add black patch to image
 
     x1 = x - (deltax // 2)
     x2 = x + (deltax // 2)
-    imgsCropPatch = images
-    patches = images[:, :, x1:x2, x1:x2]
+    imgsCropPatch = torch.clone(images)
+    patches = torch.clone(images[:, :, x1:x2, x1:x2])
     imgsCropPatch[:, :, x1:x2, x1:x2] = 0
 
     return imgsCropPatch, patches
 
-
+"""
 def loadImages(dataPath, imgSize, btchSize):  # Load Images from dataset
     generator = tensorflow.keras.preprocessing.image.ImageDataGenerator(horizontal_flip=False,
                                                                         vertical_flip=False)
@@ -43,3 +45,4 @@ def saveImgs(imgs, epoch):  # Save generated images
         img = img.numpy().astype(np.uint8)
         # img = img.astype('uint8')
         plt.imsave(path + "image" + str(epoch) + "_" + str(i + 1) + ".jpg", img)
+"""

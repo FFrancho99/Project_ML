@@ -17,20 +17,20 @@ class Discriminator(nn.Module):
             nn.Conv2d(in_channels=input_channels, out_channels=6, kernel_size=(5, 5), padding=2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2,2), stride=(2,2))
-        )
+        )#6@16x16
 
         self.layer2 = nn.Sequential(
             nn.Conv2d(in_channels=6, out_channels=16, kernel_size=(5, 5), padding=2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        )
+        )#16@8x8
 
         self.layer3 = nn.Sequential(
             nn.Conv2d(in_channels=16, out_channels=32,
                           kernel_size=(5, 5), padding=2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        )
+        )#32@4x4
 
         if(size == 64):
             self.layer4 = nn.Sequential(
