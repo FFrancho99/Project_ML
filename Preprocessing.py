@@ -15,7 +15,7 @@ def cropPatches(images, x, deltax):  # Add black patch to image
 
     return imgsCropPatch, patches
 
-
+"""
 def loadImages(dataPath, imgSize, btchSize):  # Load Images from dataset
     generator = tensorflow.keras.preprocessing.image.ImageDataGenerator(horizontal_flip=False,
                                                                         vertical_flip=False)
@@ -43,3 +43,4 @@ def saveImgs(imgs, epoch):  # Save generated images
         img = img.numpy().astype(np.uint8)
         # img = img.astype('uint8')
         plt.imsave(path + "image" + str(epoch) + "_" + str(i + 1) + ".jpg", img)
+"""
