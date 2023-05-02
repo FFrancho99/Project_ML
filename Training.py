@@ -85,6 +85,7 @@ for epoch_nr in range(nb_epochs):
         ############################################
         ########### Train Discriminator ############
         ############################################
+        optimizerD.zero_grad()
 
         # remove (crop) patch from image
         batch_im_crop, batch_patch_ori = cropPatches(batch_im_ori, 64, 64)
@@ -100,8 +101,8 @@ for epoch_nr in range(nb_epochs):
         predicted_proba = discriminator(batch_patch_ori)
         lossD_real = criterion(predicted_proba, batch_labels)  # batch_data = label here
         # compute gradient
-        optimizerD.zero_grad()
-        lossD_real.backward()
+
+        lossD_real.backward(retain_graph=True)
 
         ## train with fake input -> LABEL=0
         batch_labels.fill_(fake_label)
@@ -112,7 +113,7 @@ for epoch_nr in range(nb_epochs):
         predicted_proba = discriminator(predicted_patch)
         lossD_fake = criterion(predicted_proba, batch_labels)  # batch_data = label here
         # compute gradient
-        lossD_fake.backward()
+        lossD_fake.backward(retain_graph=True)
 
         # update D
         lossD = lossD_real + lossD_fake
@@ -121,14 +122,14 @@ for epoch_nr in range(nb_epochs):
         ############################################
         ############# Train Generator ##############
         ############################################
-
+        optimizerG.zero_grad() # re-initialize the gradient to zero
         # Predict and get loss
         batch_labels.fill_(real_label)
         predicted_proba = discriminator(predicted_patch) # recompute the proba since D has been updated
         lossG = criterion(predicted_proba, batch_labels)  # batch_data = label here
 
         # Update model
-        optimizerG.zero_grad()  # re-initialize the gradient to zero
+
         lossG.backward()
         optimizerG.step()
 
@@ -164,6 +165,6 @@ for epoch_nr in range(nb_epochs):
     print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
 
 
-    val_losses[epoch_nr] = val_loss
+    val_lossesG[epoch_nr] = val_loss
 
 print('Training finished')
