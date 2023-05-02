@@ -2,6 +2,7 @@ import torchvision.datasets
 
 from Model import Generator
 from Model import Discriminator
+from TrainingFunctions import imshow
 import TrainingFunctions
 import os
 import numpy as np
@@ -39,7 +40,7 @@ from Preprocessing import *
 ### Load dataset ###
 batch_size = 64
 train_folder = "dataset/imagewoof2-160"
-nb_epochs = 1
+nb_epochs = 10
 learningRate = 0.0001
 
 # Get the iterative dataloaders for test and training data
@@ -52,10 +53,10 @@ print(example_images.shape)
 TrainingFunctions.imshow(torchvision.utils.make_grid(example_images))
 
 # Instanciate model
-
+device = 'cuda:0'
 generator_options = Generator.GeneratorOptions
-generator = Generator.Generator(generator_options)
-discriminator = Discriminator.Discriminator(input_channels=3, size=64)
+generator = Generator.Generator(generator_options).to(device)
+discriminator = Discriminator.Discriminator(input_channels=3, size=64).to(device)
 real_label = 1
 fake_label = 0
 
@@ -67,13 +68,11 @@ optimizerD = optim.Adam(discriminator.parameters(), lr=learningRate, betas=(beta
 optimizerG = optim.Adam(generator.parameters(), lr=learningRate, betas=(beta1, 0.999))
 
 ### Training ###
-device = 'cpu'
 tr_lossesG = np.zeros(nb_epochs)
 tr_lossesD = np.zeros(nb_epochs)
 val_lossesG = np.zeros(nb_epochs)
 val_lossesD = np.zeros(nb_epochs)
 
-batch_labels = torch.full((batch_size, 1), real_label, dtype=torch.float, device=device)
 
 for epoch_nr in range(nb_epochs):
 
@@ -95,7 +94,7 @@ for epoch_nr in range(nb_epochs):
         batch_patch_ori = batch_patch_ori.to(device)
 
         ## train with real input -> LABEL=1
-        batch_labels.fill_(real_label)
+        batch_labels = torch.full((batch_im_ori.size(0), 1), real_label, dtype=torch.float, device=device)
 
         # Predict and get loss
         predicted_proba = discriminator(batch_patch_ori)
@@ -109,7 +108,6 @@ for epoch_nr in range(nb_epochs):
 
         # Predict and get loss
         predicted_patch = generator(batch_im_crop)
-        print(predicted_patch.shape)
         predicted_proba = discriminator(predicted_patch)
         lossD_fake = criterion(predicted_proba, batch_labels)  # batch_data = label here
         # compute gradient
@@ -148,23 +146,34 @@ for epoch_nr in range(nb_epochs):
     # Get validation results
     running_loss = 0
 
-    with torch.no_grad():
-        for batch_im_ori, batch_im_crop in val_loader:
-            # Put data on device
-            batch_im_ori = batch_im_ori.to(device)
-            batch_im_crop = batch_im_crop.to(device)
-
-            # Predict and get loss
-            predicted_patch = generator(batch_im_crop)
-            loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
-
-            # Keep running statistics
-            running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
-
-    val_loss = running_loss / len(val_loader.dataset)
-    print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
-
-
-    val_lossesG[epoch_nr] = val_loss
+    # with torch.no_grad():
+    #     for batch_im_ori, batch_im_crop in val_loader:
+    #         # Put data on device
+    #         batch_im_ori = batch_im_ori.to(device)
+    #         batch_im_crop = batch_im_crop.to(device)
+    #
+    #         # Predict and get loss
+    #         predicted_patch = generator(batch_im_crop)
+    #         loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
+    #
+    #         # Keep running statistics
+    #         running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
+    #
+    # val_loss = running_loss / len(val_loader.dataset)
+    # print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
+    #
+    #
+    # val_lossesG[epoch_nr] = val_loss
 
 print('Training finished')
+testiter = iter(test_loader)
+real_batch, example_labels = next(testiter)
+batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
+predicted_patch = generator(batch_im_crop.to(device))
+
+
+# Show images
+imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
+imshow(torchvision.utils.make_grid(predicted_patch.cpu().view(batch_patch_ori.shape)))
+
+
