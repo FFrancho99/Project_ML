@@ -61,6 +61,7 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x):
+        #print(x.shape)
         logits = self.layer3(self.layer2(self.layer1(x)))
         if(self.input_size == 64 or self.input_size == 128):
             logits = self.layer4(logits)

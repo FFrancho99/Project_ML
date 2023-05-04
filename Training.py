@@ -39,8 +39,8 @@ from Preprocessing import *
 
 ### Load dataset ###
 batch_size = 64
-train_folder = "dataset/imagewoof2-160"
-nb_epochs = 10
+train_folder = "imagewoof2-160"
+nb_epochs = 30
 learningRate = 0.0001
 
 # Get the iterative dataloaders for test and training data
@@ -56,7 +56,11 @@ TrainingFunctions.imshow(torchvision.utils.make_grid(example_images))
 device = 'cuda:0'
 generator_options = Generator.GeneratorOptions
 generator = Generator.Generator(generator_options).to(device)
-discriminator = Discriminator.Discriminator(input_channels=3, size=64).to(device)
+mode = 0
+if mode == 0:
+    discriminator = Discriminator.Discriminator(input_channels=3, size=64).to(device)
+else:
+    discriminator = Discriminator.Discriminator(input_channels=3, size=128).to(device)
 real_label = 1
 fake_label = 0
 
@@ -108,6 +112,7 @@ for epoch_nr in range(nb_epochs):
 
         # Predict and get loss
         predicted_patch = generator(batch_im_crop)
+
         predicted_proba = discriminator(predicted_patch)
         lossD_fake = criterion(predicted_proba, batch_labels)  # batch_data = label here
         # compute gradient
