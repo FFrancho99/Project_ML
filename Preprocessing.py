@@ -15,6 +15,14 @@ def cropPatches(images, x, deltax):  # Add black patch to image
 
     return imgsCropPatch, patches
 
+def merge_patch_image(patches, images, x, deltax):
+    x1 = x - (deltax // 2)
+    x2 = x + (deltax // 2)
+    output = torch.clone(images)
+    output[:, :, x1:x2, x1:x2] = torch.clone(patches)
+
+    return output
+
 
 def loadImages(dataPath, imgSize, btchSize):  # Load Images from dataset
     generator = tensorflow.keras.preprocessing.image.ImageDataGenerator(horizontal_flip=False,
