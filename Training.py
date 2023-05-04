@@ -16,6 +16,7 @@ from torchvision.datasets import ImageNet
 from torchvision import transforms
 from Preprocessing import *
 
+
 # ### PREPROCESSING ###
 #
 # imgSize = 128
@@ -37,6 +38,8 @@ from Preprocessing import *
 #
 # saveImgs(trainLoaderCrop, 1)
 
+
+
 ### Load dataset ###
 batch_size = 64
 train_folder = "dataset/imagewoof2-160"
@@ -53,7 +56,8 @@ print(example_images.shape)
 TrainingFunctions.imshow(torchvision.utils.make_grid(example_images))
 
 # Instanciate model
-device = 'cuda:0'
+#device = 'cuda:0'
+device = 'cpu'
 generator_options = Generator.GeneratorOptions
 generator = Generator.Generator(generator_options).to(device)
 discriminator = Discriminator.Discriminator(input_channels=3, size=64).to(device)
@@ -63,7 +67,9 @@ fake_label = 0
 ### Instanciate optimizer  ###
 
 beta1 = 0.5
-criterion = nn.BCELoss()
+criterion_adv = nn.BCELoss()  # adversarial criterion -> compare proba with label (Binary Cross Entropy loss)
+criterion_rec = nn.MSELoss()  # reconstruction criterion -> compares patches (L2 loss)
+weight_loss_adv = 0.001
 optimizerD = optim.Adam(discriminator.parameters(), lr=learningRate, betas=(beta1, 0.999))
 optimizerG = optim.Adam(generator.parameters(), lr=learningRate, betas=(beta1, 0.999))
 
@@ -72,7 +78,6 @@ tr_lossesG = np.zeros(nb_epochs)
 tr_lossesD = np.zeros(nb_epochs)
 val_lossesG = np.zeros(nb_epochs)
 val_lossesD = np.zeros(nb_epochs)
-
 
 for epoch_nr in range(nb_epochs):
 
@@ -98,7 +103,7 @@ for epoch_nr in range(nb_epochs):
 
         # Predict and get loss
         predicted_proba = discriminator(batch_patch_ori)
-        lossD_real = criterion(predicted_proba, batch_labels)  # batch_data = label here
+        lossD_real = criterion_adv(predicted_proba, batch_labels)  # batch_data = label here
         # compute gradient
 
         lossD_real.backward(retain_graph=True)
@@ -109,7 +114,7 @@ for epoch_nr in range(nb_epochs):
         # Predict and get loss
         predicted_patch = generator(batch_im_crop)
         predicted_proba = discriminator(predicted_patch)
-        lossD_fake = criterion(predicted_proba, batch_labels)  # batch_data = label here
+        lossD_fake = criterion_adv(predicted_proba, batch_labels)  # batch_data = label here
         # compute gradient
         lossD_fake.backward(retain_graph=True)
 
@@ -120,11 +125,13 @@ for epoch_nr in range(nb_epochs):
         ############################################
         ############# Train Generator ##############
         ############################################
-        optimizerG.zero_grad() # re-initialize the gradient to zero
+        optimizerG.zero_grad()  # re-initialize the gradient to zero
         # Predict and get loss
         batch_labels.fill_(real_label)
-        predicted_proba = discriminator(predicted_patch) # recompute the proba since D has been updated
-        lossG = criterion(predicted_proba, batch_labels)  # batch_data = label here
+        predicted_proba = discriminator(predicted_patch)  # recompute the proba since D has been updated
+        loss_adv = criterion_adv(predicted_proba, batch_labels)
+        loss_rec = criterion_rec(predicted_patch, batch_patch_ori)
+        lossG = weight_loss_adv * loss_adv + (1 - weight_loss_adv) * loss_rec
 
         # Update model
 
@@ -171,9 +178,6 @@ real_batch, example_labels = next(testiter)
 batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
 predicted_patch = generator(batch_im_crop.to(device))
 
-
 # Show images
 imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
 imshow(torchvision.utils.make_grid(predicted_patch.cpu().view(batch_patch_ori.shape)))
-
-
