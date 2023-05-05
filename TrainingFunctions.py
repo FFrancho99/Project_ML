@@ -23,14 +23,9 @@ def compute_run_acc(logits, labels):
 def load_dataset(data_path, batch_size):
     # Load all the images
     transformation = transforms.Compose([
-        # Randomly augment the image data
-        # Random horizontal flip
-        # transforms.RandomHorizontalFlip(0.5),
-        # Random vertical flip
-        # transforms.RandomVerticalFlip(0.3),
-        # crop image to a square image
-        transforms.RandomCrop((128, 128)),
-        # transform to tensors
+        # Resize image to 128x128
+        transforms.Resize((128, 128)),
+        # Transform to tensors
         transforms.ToTensor(),
         # Normalize the pixel values (in R, G, and B channels)
         transforms.Normalize(mean=0.5, std=0.5)

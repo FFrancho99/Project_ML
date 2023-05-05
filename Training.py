@@ -41,7 +41,7 @@ from Preprocessing import *
 
 ### Load dataset ###
 batch_size = 64
-train_folder = "dataset/imagewoof2-160"
+train_folder = "dataset/afhq"
 nb_epochs = 10
 learningRate = 0.0001
 
