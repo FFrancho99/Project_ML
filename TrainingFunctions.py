@@ -73,5 +73,4 @@ def load_dataset(data_path, batch_size):
         num_workers=0,
         shuffle=False
     )
-
-    return train_loader, val_loader,test_loader
+    return train_loader, val_loader, test_loader

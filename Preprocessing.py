@@ -3,6 +3,8 @@ import os
 #import tensorflow
 import torch
 import matplotlib.pyplot as plt
+from TrainingFunctions import imshow
+import torchvision.datasets
 
 
 def cropPatches(images, x, deltax):  # Add black patch to image
@@ -14,6 +16,7 @@ def cropPatches(images, x, deltax):  # Add black patch to image
     imgsCropPatch[:, :, x1:x2, x1:x2] = 0
 
     return imgsCropPatch, patches
+
 
 def merge_patch_image(patches, images, x, deltax):
     x1 = x - (deltax // 2)

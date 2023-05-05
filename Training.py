@@ -16,6 +16,7 @@ from torchvision.datasets import ImageNet
 from torchvision import transforms
 from Preprocessing import *
 
+
 # ### PREPROCESSING ###
 #
 # imgSize = 128
@@ -37,10 +38,11 @@ from Preprocessing import *
 #
 # saveImgs(trainLoaderCrop, 1)
 
+
 ### Load dataset ###
 batch_size = 64
-train_folder = "imagewoof2-160"
-nb_epochs = 100
+train_folder = "dataset/imagewoof2-160"
+nb_epochs = 10
 learningRate = 0.0001
 
 # Get the iterative dataloaders for test and training data
@@ -53,6 +55,7 @@ print(example_images.shape)
 TrainingFunctions.imshow(torchvision.utils.make_grid(example_images))
 
 # Instanciate model
+
 device = 'cuda:0'
 generator_options = Generator.GeneratorOptions
 generator = Generator.Generator(generator_options).to(device)
@@ -61,13 +64,20 @@ if mode == 0:
     discriminator = Discriminator.Discriminator(input_channels=3, size=64).to(device)
 else:
     discriminator = Discriminator.Discriminator(input_channels=3, size=128).to(device)
+
 real_label = 1
 fake_label = 0
 
 ### Instanciate optimizer  ###
 
 beta1 = 0.5
+
 criterion = nn.BCELoss()
+
+criterion_adv = nn.BCELoss()  # adversarial criterion -> compare proba with label (Binary Cross Entropy loss)
+criterion_rec = nn.MSELoss()  # reconstruction criterion -> compares patches (L2 loss)
+weight_loss_adv = 0.001
+
 optimizerD = optim.Adam(discriminator.parameters(), lr=learningRate, betas=(beta1, 0.999))
 optimizerG = optim.Adam(generator.parameters(), lr=learningRate, betas=(beta1, 0.999))
 
@@ -77,112 +87,192 @@ tr_lossesD = np.zeros(nb_epochs)
 val_lossesG = np.zeros(nb_epochs)
 val_lossesD = np.zeros(nb_epochs)
 
+
 """MODE 0"""
 if(mode == 0):
 
     for epoch_nr in range(nb_epochs):
+    
+    
+    
+     print("Epoch {}:".format(epoch_nr))
+    # Train model
+    running_lossD = 0.0
+    running_lossG = 0.0
+    for batch_im_ori, _ in train_loader:
+        ############################################
+        ########### Train Discriminator ############
+        ############################################
+        optimizerD.zero_grad()
 
-        print("Epoch {}:".format(epoch_nr))
-        # Train model
-        running_lossD = 0.0
-        running_lossG = 0.0
-        for batch_im_ori, _ in train_loader:
-            ############################################
-            ########### Train Discriminator ############
-            ############################################
-            optimizerD.zero_grad()
+        # remove (crop) patch from image
+        batch_im_crop, batch_patch_ori = cropPatches(batch_im_ori, 64, 64)
+        # Put data on device
+        batch_im_ori = batch_im_ori.to(device)
+        batch_im_crop = batch_im_crop.to(device)
+        batch_patch_ori = batch_patch_ori.to(device)
 
-            # remove (crop) patch from image
-            batch_im_crop, batch_patch_ori = cropPatches(batch_im_ori, 64, 64)
-            # Put data on device
-            batch_im_ori = batch_im_ori.to(device)
-            batch_im_crop = batch_im_crop.to(device)
-            batch_patch_ori = batch_patch_ori.to(device)
+        ## train with real input -> LABEL=1
+        batch_labels = torch.full((batch_im_ori.size(0), 1), real_label, dtype=torch.float, device=device)
 
-            ## train with real input -> LABEL=1
-            batch_labels = torch.full((batch_im_ori.size(0), 1), real_label, dtype=torch.float, device=device)
+        # Predict and get loss
+        predicted_proba = discriminator(batch_patch_ori)
+        lossD_real = criterion_adv(predicted_proba, batch_labels)  # batch_data = label here
+        # compute gradient
 
-            # Predict and get loss
-            predicted_proba = discriminator(batch_patch_ori)
-            lossD_real = criterion(predicted_proba, batch_labels)  # batch_data = label here
-            # compute gradient
+        lossD_real.backward(retain_graph=True)
 
-            lossD_real.backward(retain_graph=True)
+        ## train with fake input -> LABEL=0
+        batch_labels.fill_(fake_label)
 
-            ## train with fake input -> LABEL=0
-            batch_labels.fill_(fake_label)
+        # Predict and get loss
+        predicted_patch = generator(batch_im_crop)
+        predicted_proba = discriminator(predicted_patch)
+        lossD_fake = criterion_adv(predicted_proba, batch_labels)  # batch_data = label here
+        # compute gradient
+        lossD_fake.backward(retain_graph=True)
 
-            # Predict and get loss
-            predicted_patch = generator(batch_im_crop)
+        # update D
+        lossD = lossD_real + lossD_fake
+        optimizerD.step()
 
-            predicted_proba = discriminator(predicted_patch)
-            lossD_fake = criterion(predicted_proba, batch_labels)  # batch_data = label here
-            # compute gradient
-            lossD_fake.backward(retain_graph=True)
+        ############################################
+        ############# Train Generator ##############
+        ############################################
+        optimizerG.zero_grad()  # re-initialize the gradient to zero
+        # Predict and get loss
+        batch_labels.fill_(real_label)
+        predicted_proba = discriminator(predicted_patch)  # recompute the proba since D has been updated
+        loss_adv = criterion_adv(predicted_proba, batch_labels)
+        loss_rec = criterion_rec(predicted_patch, batch_patch_ori)
+        lossG = weight_loss_adv * loss_adv + (1 - weight_loss_adv) * loss_rec
 
-            # update D
-            lossD = lossD_real + lossD_fake
-            optimizerD.step()
+        # Update model
 
-            ############################################
-            ############# Train Generator ##############
-            ############################################
-            optimizerG.zero_grad() # re-initialize the gradient to zero
-            # Predict and get loss
-            batch_labels.fill_(real_label)
-            predicted_proba = discriminator(predicted_patch) # recompute the proba since D has been updated
-            lossG = criterion(predicted_proba, batch_labels)  # batch_data = label here
+        lossG.backward()
+        optimizerG.step()
 
-            # Update model
+        # Keep running statistics
+        running_lossD += lossD.item()
+        running_lossG += lossG.item()
 
-            lossG.backward()
-            optimizerG.step()
+    # Print results
+    tr_lossG = running_lossG / len(train_loader.dataset)
+    tr_lossD = running_lossD / len(train_loader.dataset)
+    print('>> TRAIN: Epoch {} completed | tr_lossG: {:.4f} | tr_lossD: {:.4f}'.format(
+        epoch_nr, tr_lossG, tr_lossD))
 
-            # Keep running statistics
-            running_lossD += lossD.item()
-            running_lossG += lossG.item()
+    tr_lossesG[epoch_nr] = tr_lossG
+    tr_lossesD[epoch_nr] = tr_lossD
+    # Get validation results
+    running_loss = 0
+    
+    
+    
 
-        # Print results
-        tr_lossG = running_lossG / len(train_loader.dataset)
-        tr_lossD = running_lossD / len(train_loader.dataset)
-        print('>> TRAIN: Epoch {} completed | tr_lossG: {:.4f} | tr_lossD: {:.4f}'.format(
-            epoch_nr, tr_lossG, tr_lossD))
-
-        tr_lossesG[epoch_nr] = tr_lossG
-        tr_lossesD[epoch_nr] = tr_lossD
-        # Get validation results
-        running_loss = 0
-
-        # with torch.no_grad():
-        #     for batch_im_ori, batch_im_crop in val_loader:
-        #         # Put data on device
-        #         batch_im_ori = batch_im_ori.to(device)
-        #         batch_im_crop = batch_im_crop.to(device)
-        #
-        #         # Predict and get loss
-        #         predicted_patch = generator(batch_im_crop)
-        #         loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
-        #
-        #         # Keep running statistics
-        #         running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
-        #
-        # val_loss = running_loss / len(val_loader.dataset)
-        # print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
-        #
-        #
-        # val_lossesG[epoch_nr] = val_loss
-
-    print('Training finished')
-    testiter = iter(test_loader)
-    real_batch, example_labels = next(testiter)
-    batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
-    predicted_patch = generator(batch_im_crop.to(device))
-
-
-    # Show images
-    imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
-    imshow(torchvision.utils.make_grid(predicted_patch.cpu().view(batch_patch_ori.shape)))
-
+  #      print("Epoch {}:".format(epoch_nr))
+  #      # Train model
+  #      running_lossD = 0.0
+  #      running_lossG = 0.0
+  #      for batch_im_ori, _ in train_loader:
+  #          ############################################
+  #          ########### Train Discriminator ############
+  #          ############################################
+  #          optimizerD.zero_grad()
+#
+  #          # remove (crop) patch from image
+  #          batch_im_crop, batch_patch_ori = cropPatches(batch_im_ori, 64, 64)
+  #          # Put data on device
+  #          batch_im_ori = batch_im_ori.to(device)
+  #          batch_im_crop = batch_im_crop.to(device)
+  #          batch_patch_ori = batch_patch_ori.to(device)
+#
+#
+  #          ## train with real input -> LABEL=1
+  #          batch_labels = torch.full((batch_im_ori.size(0), 1), real_label, dtype=torch.float, device=device)
+#
+#
+  #          # Predict and get loss
+  #          predicted_proba = discriminator(batch_patch_ori)
+  #          lossD_real = criterion(predicted_proba, batch_labels)  # batch_data = label here
+  #          # compute gradient
+#
+  #          lossD_real.backward(retain_graph=True)
+#
+  #          ## train with fake input -> LABEL=0
+  #          batch_labels.fill_(fake_label)
+#
+  #          # Predict and get loss
+  #          predicted_patch = generator(batch_im_crop)
+#
+  #          predicted_proba = discriminator(predicted_patch)
+  #          lossD_fake = criterion(predicted_proba, batch_labels)  # batch_data = label here
+  #          # compute gradient
+  #          lossD_fake.backward(retain_graph=True)
+#
+  #          # update D
+  #          lossD = lossD_real + lossD_fake
+  #          optimizerD.step()
+#
+  #          ############################################
+  #          ############# Train Generator ##############
+  #          ############################################
+  #          optimizerG.zero_grad() # re-initialize the gradient to zero
+  #          # Predict and get loss
+  #          batch_labels.fill_(real_label)
+  #          predicted_proba = discriminator(predicted_patch) # recompute the proba since D has been updated
+  #          lossG = criterion(predicted_proba, batch_labels)  # batch_data = label here
+#
+  #          # Update model
+#
+  #          lossG.backward()
+  #          optimizerG.step()
+#
+  #          # Keep running statistics
+  #          running_lossD += lossD.item()
+  #          running_lossG += lossG.item()
+#
+  #      # Print results
+  #      tr_lossG = running_lossG / len(train_loader.dataset)
+  #      tr_lossD = running_lossD / len(train_loader.dataset)
+  #      print('>> TRAIN: Epoch {} completed | tr_lossG: {:.4f} | tr_lossD: {:.4f}'.format(
+  #          epoch_nr, tr_lossG, tr_lossD))
+#
+  #      tr_lossesG[epoch_nr] = tr_lossG
+  #      tr_lossesD[epoch_nr] = tr_lossD
+  #      # Get validation results
+  #      running_loss = 0
+#
+  #      # with torch.no_grad():
+  #      #     for batch_im_ori, batch_im_crop in val_loader:
+  #      #         # Put data on device
+  #      #         batch_im_ori = batch_im_ori.to(device)
+  #      #         batch_im_crop = batch_im_crop.to(device)
+  #      #
+  #      #         # Predict and get loss
+  #      #         predicted_patch = generator(batch_im_crop)
+  #      #         loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
+  #      #
+  #      #         # Keep running statistics
+  #      #         running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
+  #      #
+  #      # val_loss = running_loss / len(val_loader.dataset)
+  #      # print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
+  #      #
+  #      #
+  #      # val_lossesG[epoch_nr] = val_loss
+#
+  #  print('Training finished')
+  #  testiter = iter(test_loader)
+  #  real_batch, example_labels = next(testiter)
+  #  batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
+  #  predicted_patch = generator(batch_im_crop.to(device))
+#
+#
+  #  # Show images
+  #  imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
+  #  imshow(torchvision.utils.make_grid(predicted_patch.cpu().view(batch_patch_ori.shape)))
+#
 
     """MODE 1           """
 else:
@@ -293,3 +383,35 @@ plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  tr_lossesG, 'r', label= "Gen
 plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), tr_lossesD, 'b', label= "Discriminator loss")
 plt.title("Value of the loss function for generator and discriminator (Training)")
 plt.show()
+
+   
+
+    # with torch.no_grad():
+    #     for batch_im_ori, batch_im_crop in val_loader:
+    #         # Put data on device
+    #         batch_im_ori = batch_im_ori.to(device)
+    #         batch_im_crop = batch_im_crop.to(device)
+    #
+    #         # Predict and get loss
+    #         predicted_patch = generator(batch_im_crop)
+    #         loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
+    #
+    #         # Keep running statistics
+    #         running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
+    #
+    # val_loss = running_loss / len(val_loader.dataset)
+    # print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
+    #
+    #
+    # val_lossesG[epoch_nr] = val_loss
+
+#print('Training finished')
+#testiter = iter(test_loader)
+#real_batch, example_labels = next(testiter)
+#batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
+#predicted_patch = generator(batch_im_crop.to(device))
+
+# Show images
+imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
+imshow(torchvision.utils.make_grid(predicted_patch.cpu().view(batch_patch_ori.shape)))
+
