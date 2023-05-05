@@ -54,11 +54,6 @@ fake_label = 0
 
 beta1 = 0.5
 
-criterion = nn.BCELoss()
-
-criterion_adv = nn.BCELoss()  # adversarial criterion -> compare proba with label (Binary Cross Entropy loss)
-criterion_rec = nn.MSELoss()  # reconstruction criterion -> compares patches (L2 loss)
-weight_loss_adv = 0.001
 
 optimizerD = optim.Adam(discriminator.parameters(), lr=learningRate, betas=(beta1, 0.999))
 optimizerG = optim.Adam(generator.parameters(), lr=learningRate, betas=(beta1, 0.999))
@@ -68,6 +63,11 @@ tr_lossesG = np.zeros(nb_epochs)
 tr_lossesD = np.zeros(nb_epochs)
 val_lossesG = np.zeros(nb_epochs)
 val_lossesD = np.zeros(nb_epochs)
+val_accuraciesG = np.zeros(nb_epochs)
+val_accuraciesD = np.zeros(nb_epochs)
+val_maesG = np.zeros(nb_epochs)
+val_maesD = np.zeros(nb_epochs)
+
 
 
 def criterionD_tr(predicted_proba, true_labels):
@@ -109,6 +109,12 @@ for epoch_nr in range(nb_epochs):
     # Train model
     running_lossD = 0.0
     running_lossG = 0.0
+    running_lossD_val = 0.0
+    running_lossG_val = 0.0
+    running_accD_val = 0.0
+    running_accG_val = 0.0
+    running_maeD_val = 0.0
+    running_maeG_val = 0.0
     for batch_im_ori, _ in train_loader:
         ############################################
         ########### Train Discriminator ############
@@ -150,7 +156,7 @@ for epoch_nr in range(nb_epochs):
         lossD_fake.backward(retain_graph=True)
 
         # update D
-        lossD = lossD_real + lossD_fake
+        lossD = (lossD_real + lossD_fake)/2.0
         optimizerD.step()
 
         ############################################
@@ -162,65 +168,19 @@ for epoch_nr in range(nb_epochs):
         if mode == 0:
             predicted_proba = discriminator(predicted_patch)  # recompute the proba since D has been updated
         else:
-        predicted_proba = discriminator(predicted_patch)  # recompute the proba since D has been updated
+            predicted_proba = discriminator(predicted_image)
         lossG = criterionG_tr(predicted_proba, batch_labels, predicted_patch, batch_patch_ori)
-
 
         # Update model
 
         lossG.backward()
         optimizerG.step()
 
-        # Keep running statistics
+        # Keep running statistics (for each batch)
         running_lossD += lossD.item()
         running_lossG += lossG.item()
 
-        ############################################
-        ############# Validation #############
-        ############################################
-        with torch.no_grad():
-            for batch_im_ori_val, _ in val_loader:
-                batch_im_crop_val, batch_patch_ori_val = cropPatches(batch_im_ori_val, 64, 64)
-                # Put data on device
-                batch_im_ori_val = batch_im_ori_val.to(device)
-                batch_im_crop_val = batch_im_crop_val.to(device)
-                batch_patch_ori_val = batch_patch_ori_val.to(device)
-
-#predicted_image_val = merge_patch_image(predicted_patch_val, batch_im_crop_val, 64, 64)
-
-                ## val with real input -> LABEL=1
-                batch_labels_val = torch.full((batch_im_ori_val.size(0), 1), real_label, dtype=torch.float, device=device)
-                predicted_proba_val_real = discriminator(batch_patch_ori_val)
-                lossD_val_real = criterionD_val(predicted_proba_val_real, batch_labels_val)
-
-                ## val with fake input -> LABEL=0
-                batch_labels.fill_(fake_label)
-                predicted_patch_val = generator(batch_im_crop_val)
-                predicted_proba_val_fake = discriminator(predicted_patch_val)
-                lossD_val_fake = criterionD_val(predicted_proba_val_fake, batch_labels_val)
-
-                batch_labels.fill(real_label)
-                predicted_proba_val = discriminator(predicted_patch_val)
-
-                lossG_val = criterionG_val(predicted_proba_val, batch_labels_val, predicted_patch_val, batch_patch_ori_val)  # batch_data is the label here
-
-                # Keep running statistics
-                running_lossG_val += lossG_val
-                running_lossD_val += lossD_val_real + lossD_val_fake
-
-        val_lossG = running_lossG_val / len(val_loader.dataset)
-        val_lossD = running_lossD_val / len(val_loader.dataset)
-        print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
-        val_lossesG[epoch_nr] = val_lossG
-        val_lossesD[epoch_nr] = val_lossD
-
-    print('Training finished')
-
-    ############################################
-    ############# Test #############
-    ############################################
-
-    # Print results
+    # Print results (for each epoch)
     tr_lossG = running_lossG / len(train_loader.dataset)
     tr_lossD = running_lossD / len(train_loader.dataset)
     print('>> TRAIN: Epoch {} completed | tr_lossG: {:.4f} | tr_lossD: {:.4f}'.format(
@@ -228,119 +188,87 @@ for epoch_nr in range(nb_epochs):
 
     tr_lossesG[epoch_nr] = tr_lossG
     tr_lossesD[epoch_nr] = tr_lossD
-    # Get validation results
-    running_loss = 0
 
 
-    """MODE 1           """
-else:
-    for epoch_nr in range(nb_epochs):
-
-        print("Epoch {}:".format(epoch_nr))
-        # Train model
-        running_lossD = 0.0
-        running_lossG = 0.0
-        for batch_im_ori, _ in train_loader:
-            ############################################
-            ########### Train Discriminator ############
-            ############################################
-            optimizerD.zero_grad()
-
-            # remove (crop) patch from image
-            batch_im_crop, batch_patch_ori = cropPatches(batch_im_ori, 64, 64)
+    ############################################
+    ############# Validation #############
+    ############################################
+    with torch.no_grad():
+        for batch_im_ori_val, _ in val_loader:
+            batch_im_crop_val, batch_patch_ori_val = cropPatches(batch_im_ori_val, 64, 64)
             # Put data on device
-            batch_im_ori = batch_im_ori.to(device)
-            batch_im_crop = batch_im_crop.to(device)
-            batch_patch_ori = batch_patch_ori.to(device)
-            ## train with real input -> LABEL=1
-            batch_labels = torch.full((batch_im_ori.size(0), 1), real_label, dtype=torch.float, device=device)
+            batch_im_ori_val = batch_im_ori_val.to(device)
+            batch_im_crop_val = batch_im_crop_val.to(device)
+            batch_patch_ori_val = batch_patch_ori_val.to(device)
 
-            # Predict and get loss
-            # print(batch_im_ori.size())
-            predicted_proba = discriminator(batch_im_ori)
-            lossD_real = criterion(predicted_proba, batch_labels)  # batch_data = label here
-            # compute gradient
+            # VALIDATION DISCRIMINATOR -- REAL INPUT -> LABEL=1
+            batch_labels_val = torch.full((batch_im_ori_val.size(0), 1), real_label, dtype=torch.float,
+                                          device=device)
 
-            lossD_real.backward(retain_graph=True)
+            if mode == 0:
+                predicted_proba_val = discriminator(batch_patch_ori_val)
+            else:
+                predicted_proba_val = discriminator(batch_im_ori_val)
+            lossD_val_real, maeD_val_real, accD_val_real = criterionD_val(predicted_proba_val, batch_labels_val)
 
-            ## train with fake input -> LABEL=0
-            batch_labels.fill_(fake_label)
+            # VALIDATION DISCRIMINATOR -- FAKE INPUT -> LABEL=0
+            batch_labels_val.fill_(fake_label)
+            predicted_patch_val = generator(batch_im_crop_val)
+            if mode == 0:
+                predicted_proba_val = discriminator(predicted_patch_val)
+            else:
+                predicted_image_val = merge_patch_image(predicted_patch_val, batch_im_crop_val, 64, 64)
+                predicted_proba_val = discriminator(predicted_image_val)
+            lossD_val_fake, maeD_val_fake, accD_val_fake = criterionD_val(predicted_proba_val, batch_labels_val)
+            lossD_val = (lossD_val_real + lossD_val_fake) / 2.0
+            maeD_val = (maeD_val_real + maeD_val_fake) / 2.0
+            accD_val = (accD_val_real + accD_val_fake) / 2.0
 
-            # Predict and get loss
-            predicted_patch = generator(batch_im_crop)
-            predicted_image = merge_patch_image(predicted_patch, batch_im_crop, 64, 64)
-            predicted_proba = discriminator(predicted_image)
-            lossD_fake = criterion(predicted_proba, batch_labels)  # batch_data = label here
-            # compute gradient
-            lossD_fake.backward(retain_graph=True)
+            # VALIDATION GENERATOR -- FAKE INPUT but LABEL=1
+            batch_labels_val.fill_(real_label)
+            if mode == 0:
+                predicted_proba_val = discriminator(predicted_patch_val)
+            else:
+                predicted_image_val = merge_patch_image(predicted_patch_val, batch_im_crop_val, 64, 64)
+                predicted_proba_val = discriminator(predicted_image_val)
 
-            # update D
-            lossD = lossD_real + lossD_fake
-            optimizerD.step()
+            lossG_val, maeG_val, accG_val = criterionG_val(predicted_proba_val, batch_labels_val, predicted_patch_val, batch_patch_ori_val)  # batch_data is the label here
 
-            ############################################
-            ############# Train Generator ##############
-            ############################################
-            optimizerG.zero_grad()  # re-initialize the gradient to zero
-            # Predict and get loss
-            batch_labels.fill_(real_label)
-            predicted_proba = discriminator(predicted_image)  # recompute the proba since D has been updated
-            lossG = criterion(predicted_proba, batch_labels)  # batch_data = label here
+            # Keep running statistics (for each batch)
+            running_lossG_val += lossG_val
+            running_lossD_val += lossD_val
+            running_accG_val += accG_val
+            running_accD_val += accD_val
+            running_maeG_val += maeG_val
+            running_maeD_val += maeD_val
+    # at each epoch -> validation
+    val_lossG = running_lossG_val / len(val_loader.dataset)
+    print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_lossG))
+    val_lossesG[epoch_nr] = val_lossG
+    val_lossesD[epoch_nr] = running_lossD_val / len(val_loader.dataset)
+    val_accuraciesD[epoch_nr] = running_accD_val/len(val_loader.dataset)
+    val_accuraciesG[epoch_nr] = running_accG_val/len(val_loader.dataset)
+    val_maesD[epoch_nr] = running_maeD_val/len(val_loader.dataset)
+    val_maesG[epoch_nr] = running_maeG_val/len(val_loader.dataset)
 
-            # Update model
 
-            lossG.backward()
-            optimizerG.step()
 
-            # Keep running statistics
-            running_lossD += lossD.item()
-            running_lossG += lossG.item()
+print('Training finished')
 
-        # Print results
-        tr_lossG = running_lossG / len(train_loader.dataset)
-        tr_lossD = running_lossD / len(train_loader.dataset)
-        print('>> TRAIN: Epoch {} completed | tr_lossG: {:.4f} | tr_lossD: {:.4f}'.format(
-            epoch_nr, tr_lossG, tr_lossD))
+############################################
+############# Test #############
+############################################
 
-        tr_lossesG[epoch_nr] = tr_lossG
-        tr_lossesD[epoch_nr] = tr_lossD
-        # Get validation results
-        running_loss = 0
+testiter = iter(test_loader)
+real_batch, example_labels = next(testiter)
+batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
+predicted_patch = generator(batch_im_crop.to(device))
 
-        #with torch.no_grad():
-             #for batch_im_ori, batch_im_crop in val_loader:
-                 # Put data on device
-        #         batch_im_ori = batch_im_ori.to(device)
-        #         batch_im_crop = batch_im_crop.to(device)
-        #
-        #         # Predict and get loss
-        #         predicted_patch = generator(batch_im_crop)
-        #         loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
-        #
-        #         # Keep running statistics
-        #         running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
-        #
-        # val_loss = running_loss / len(val_loader.dataset)
-        # print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
-        #
-        #
-        # val_lossesG[epoch_nr] = val_loss
+# Show images
+imshow(torchvision.utils.make_grid(real_batch.cpu()))
+predicted_image = merge_patch_image(predicted_patch, batch_im_crop, 64, 64)
+imshow(torchvision.utils.make_grid(predicted_image.cpu().view(predicted_image.shape)))
 
-    print('Training finished')
-
-    ############################################
-    ############# Test #############
-    ############################################
-
-    testiter = iter(test_loader)
-    real_batch, example_labels = next(testiter)
-    batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
-    predicted_patch = generator(batch_im_crop.to(device))
-
-    # Show images
-    imshow(torchvision.utils.make_grid(real_batch.cpu()))
-    predicted_image = merge_patch_image(predicted_patch, batch_im_crop, 64, 64)
-    imshow(torchvision.utils.make_grid(predicted_image.cpu().view(predicted_image.shape)))
 
 plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  tr_lossesG, 'r', label= "Generator loss")
 plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), tr_lossesD, 'b', label= "Discriminator loss")
