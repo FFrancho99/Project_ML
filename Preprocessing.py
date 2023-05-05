@@ -9,8 +9,8 @@ def cropPatches(images, x, deltax):  # Add black patch to image
 
     x1 = x - (deltax // 2)
     x2 = x + (deltax // 2)
-    imgsCropPatch = images
-    patches = images[:, :, x1:x2, x1:x2]
+    imgsCropPatch = torch.clone(images)
+    patches = torch.clone(images[:, :, x1:x2, x1:x2])
     imgsCropPatch[:, :, x1:x2, x1:x2] = 0
 
     return imgsCropPatch, patches

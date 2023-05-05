@@ -40,7 +40,7 @@ from Preprocessing import *
 ### Load dataset ###
 batch_size = 64
 train_folder = "imagewoof2-160"
-nb_epochs = 4
+nb_epochs = 100
 learningRate = 0.0001
 
 # Get the iterative dataloaders for test and training data
@@ -259,9 +259,9 @@ else:
         # Get validation results
         running_loss = 0
 
-        # with torch.no_grad():
-        #     for batch_im_ori, batch_im_crop in val_loader:
-        #         # Put data on device
+        #with torch.no_grad():
+             #for batch_im_ori, batch_im_crop in val_loader:
+                 # Put data on device
         #         batch_im_ori = batch_im_ori.to(device)
         #         batch_im_crop = batch_im_crop.to(device)
         #
