@@ -1,3 +1,5 @@
+from typing import Any
+
 import torchvision.datasets
 
 from Model import Generator
@@ -11,6 +13,7 @@ import uuid
 import torch
 import torch.optim as optim
 from torch import nn
+import torchmetrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageNet
 from torchvision import transforms
@@ -67,6 +70,35 @@ tr_lossesD = np.zeros(nb_epochs)
 val_lossesG = np.zeros(nb_epochs)
 val_lossesD = np.zeros(nb_epochs)
 
+def criterionD_tr(predicted_proba, true_labels):
+    criterion_adv = nn.BCELoss()  # adversarial criterion -> compare proba with label (Binary Cross Entropy loss)
+    lossD = criterion_adv(predicted_proba, true_labels)
+    return lossD
+
+def criterionG_tr(predicted_proba, true_labels, predicted_patch, true_patch):
+    weight_loss_adv = 0.001
+    criterion_adv = nn.BCELoss()  # adversarial criterion -> compare proba with label (Binary Cross Entropy loss)
+    criterion_rec = nn.MSELoss()  # reconstruction criterion -> compares patches (L2 loss)
+    loss_adv = criterion_adv(predicted_proba, true_labels)
+    loss_rec = criterion_rec(predicted_patch, true_patch)
+    lossG = weight_loss_adv * loss_adv + (1 - weight_loss_adv) * loss_rec
+    return lossG
+
+def criterionD_val(predicted_proba, true_labels):
+    criterion_MAE = nn.L1Loss()
+    criterion_accuracy = torchmetrics.classification.BinaryAccuracy()
+    lossD = criterionD_tr(predicted_proba, true_labels)
+    maeD = criterion_MAE(predicted_proba, true_labels)
+    accD = criterion_accuracy(predicted_proba, true_labels)
+    return lossD, maeD, accD
+
+def criterionG_val(predicted_proba, true_labels, predicted_patch, true_patch):
+    criterion_MAE = nn.L1Loss()
+    criterion_accuracy = torchmetrics.classification.BinaryAccuracy()
+    lossG = criterionG_tr(predicted_proba, true_labels, predicted_patch, true_patch)
+    maeG = criterion_MAE(predicted_proba, true_labels)
+    accG = criterion_accuracy(predicted_proba, true_labels)
+    return lossG, maeG, accG
 
 """MODE 0"""
 if(mode == 0):
@@ -94,7 +126,7 @@ if(mode == 0):
 
         # Predict and get loss
         predicted_proba = discriminator(batch_patch_ori)
-        lossD_real = criterion_adv(predicted_proba, batch_labels)  # batch_data = label here
+        lossD_real = criterionD_tr(predicted_proba, batch_labels)
         # compute gradient
 
         lossD_real.backward(retain_graph=True)
@@ -105,7 +137,7 @@ if(mode == 0):
         # Predict and get loss
         predicted_patch = generator(batch_im_crop)
         predicted_proba = discriminator(predicted_patch)
-        lossD_fake = criterion_adv(predicted_proba, batch_labels)  # batch_data = label here
+        lossD_fake = criterionD_tr(predicted_proba, batch_labels)
         # compute gradient
         lossD_fake.backward(retain_graph=True)
 
@@ -120,9 +152,8 @@ if(mode == 0):
         # Predict and get loss
         batch_labels.fill_(real_label)
         predicted_proba = discriminator(predicted_patch)  # recompute the proba since D has been updated
-        loss_adv = criterion_adv(predicted_proba, batch_labels)
-        loss_rec = criterion_rec(predicted_patch, batch_patch_ori)
-        lossG = weight_loss_adv * loss_adv + (1 - weight_loss_adv) * loss_rec
+        lossG = criterionG_tr(predicted_proba, batch_labels, predicted_patch, batch_patch_ori)
+
 
         # Update model
 
