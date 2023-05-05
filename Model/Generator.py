@@ -82,7 +82,10 @@ class Generator(nn.Module):
 
 
     def forward(self, x):
+        #print(x.shape)
         x = self.encoder(x)
+        #print(x.shape)
         x = self.decoder(x)
+        #print(x.shape)
         x = torch.tanh(x)
         return x
