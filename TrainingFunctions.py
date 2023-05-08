@@ -55,7 +55,7 @@ def load_dataset(data_path, batch_size):
     )
 
     val_loader = torch.utils.data.DataLoader(
-        train_dataset,
+        val_dataset,
         batch_size=batch_size,
         num_workers=0,
         shuffle=True

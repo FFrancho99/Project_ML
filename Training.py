@@ -18,13 +18,16 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import ImageNet
 from torchvision import transforms
 from Preprocessing import *
+#from ignite.metrics import SSIM
+#from ignite.engine import Engine
 
 # ### PREPROCESSING ###
 
 ### Load dataset ###
 batch_size = 64
 train_folder = "dataset/afhq"
-nb_epochs = 10
+trial = "test_100epochs"
+nb_epochs = 100
 learningRate = 0.0001
 
 # Get the iterative dataloaders for test and training data
@@ -34,11 +37,11 @@ print("Data loaders ready to read", train_folder)
 dataiter = iter(train_loader)
 example_images, _ = next(dataiter)
 print(example_images.shape)
-TrainingFunctions.imshow(torchvision.utils.make_grid(example_images))
+#TrainingFunctions.imshow(torchvision.utils.make_grid(example_images))
 
 # Instanciate model
 
-device = 'cpu'
+device = 'cuda:0'
 generator_options = Generator.GeneratorOptions
 generator = Generator.Generator(generator_options).to(device)
 mode = 1
@@ -88,7 +91,7 @@ def criterionG_tr(predicted_proba, true_labels, predicted_patch, true_patch):
 
 def criterionD_val(predicted_proba, true_labels):
     criterion_MAE = nn.L1Loss()
-    criterion_accuracy = torchmetrics.classification.BinaryAccuracy()
+    criterion_accuracy = torchmetrics.classification.BinaryAccuracy().to(device)
     lossD = criterionD_tr(predicted_proba, true_labels)
     maeD = criterion_MAE(predicted_proba, true_labels)
     accD = criterion_accuracy(predicted_proba, true_labels)
@@ -97,7 +100,11 @@ def criterionD_val(predicted_proba, true_labels):
 
 def criterionG_val(predicted_proba, true_labels, predicted_patch, true_patch):
     criterion_MAE = nn.L1Loss()
-    criterion_accuracy = torchmetrics.classification.BinaryAccuracy()
+    """metrics_SSIM = ignite.metrics.SSIM(data_range=255)
+    metric_SSIM.attach(default_evaluator, 'ssim')
+    state = default_evaluator.run([[predicted_patch, true_patch]])"""
+
+    criterion_accuracy = torchmetrics.classification.BinaryAccuracy().to(device)
     lossG = criterionG_tr(predicted_proba, true_labels, predicted_patch, true_patch)
     maeG = criterion_MAE(predicted_proba, true_labels)
     accG = criterion_accuracy(predicted_proba, true_labels)
@@ -246,10 +253,10 @@ for epoch_nr in range(nb_epochs):
     print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_lossG))
     val_lossesG[epoch_nr] = val_lossG
     val_lossesD[epoch_nr] = running_lossD_val / len(val_loader.dataset)
-    val_accuraciesD[epoch_nr] = running_accD_val/len(val_loader.dataset)
-    val_accuraciesG[epoch_nr] = running_accG_val/len(val_loader.dataset)
-    val_maesD[epoch_nr] = running_maeD_val/len(val_loader.dataset)
-    val_maesG[epoch_nr] = running_maeG_val/len(val_loader.dataset)
+    val_accuraciesD[epoch_nr] = running_accD_val/(len(val_loader.dataset)/batch_size)
+    val_accuraciesG[epoch_nr] = running_accG_val/(len(val_loader.dataset)/batch_size)
+    val_maesD[epoch_nr] = running_maeD_val/(len(val_loader.dataset)/batch_size)
+    val_maesG[epoch_nr] = running_maeG_val/(len(val_loader.dataset)/batch_size)
 
 
 
@@ -269,11 +276,34 @@ imshow(torchvision.utils.make_grid(real_batch.cpu()))
 predicted_image = merge_patch_image(predicted_patch, batch_im_crop, 64, 64)
 imshow(torchvision.utils.make_grid(predicted_image.cpu().view(predicted_image.shape)))
 
-
-plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  tr_lossesG, 'r', label= "Generator loss")
-plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), tr_lossesD, 'b', label= "Discriminator loss")
+plt.subplot(2, 2, 1)
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  tr_lossesG, 'r', label= "Generator")
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), tr_lossesD, 'b', label= "Discriminator")
+plt.xlabel("Epoch n°")
+plt.ylabel("Loss function")
+plt.legend()
 plt.title("Value of the loss function for generator and discriminator (Training)")
+plt.subplot(2, 2, 2)
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  val_lossesG, 'r', label= "Generator")
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), val_lossesD, 'b', label= "Discriminator")
+plt.xlabel("Epoch n°")
+plt.ylabel("Loss function")
+plt.legend()
+plt.title("Value of the loss function for generator and discriminator (Validation)")
+plt.subplot(2, 2, 3)
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  val_accuraciesG, 'r', label= "Generator")
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), val_accuraciesD, 'b', label= "Discriminator")
+plt.xlabel("Epoch n°")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.subplot(2, 2, 4)
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  val_maesG, 'r', label= "Generator")
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), val_maesD, 'b', label= "Discriminator")
+plt.xlabel("Epoch n°")
+plt.ylabel("Mean absolute erorr")
+plt.legend()
 plt.show()
+
 
 # with torch.no_grad():
 #     for batch_im_ori, batch_im_crop in val_loader:
@@ -301,6 +331,8 @@ plt.show()
 # predicted_patch = generator(batch_im_crop.to(device))
 
 # Show images
-imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
-imshow(torchvision.utils.make_grid(predicted_patch.cpu().view(batch_patch_ori.shape)))
+#imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
+#imshow(torchvision.utils.make_grid(predicted_patch.cpu().view(batch_patch_ori.shape)))
 
+torch.save(discriminator.state_dict(), './Trained models/discriminator_'+trial+'.pth')
+torch.save(generator.state_dict(), './Trained models/generator_'+trial+'.pth')
