@@ -13,22 +13,27 @@ import uuid
 import torch
 import torch.optim as optim
 from torch import nn
+from torchmetrics.functional import structural_similarity_index_measure
 import torchmetrics
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageNet
 from torchvision import transforms
 from Preprocessing import *
-#from ignite.metrics import SSIM
-#from ignite.engine import Engine
 
 # ### PREPROCESSING ###
 
 ### Load dataset ###
 batch_size = 64
+mode = 1
+if(mode == 1):
+    trial = "full_"
+else:
+    trial = "patch_"
 train_folder = "dataset/afhq"
-trial = "test_100epochs"
-nb_epochs = 100
+nb_epochs = 10
 learningRate = 0.0001
+weight_loss_adv = 0.01
+trial = trial+str(nb_epochs) + '_' + str(weight_loss_adv)
 
 # Get the iterative dataloaders for test and training data
 train_loader, val_loader, test_loader = TrainingFunctions.load_dataset(train_folder, batch_size)
@@ -44,7 +49,6 @@ print(example_images.shape)
 device = 'cuda:0'
 generator_options = Generator.GeneratorOptions
 generator = Generator.Generator(generator_options).to(device)
-mode = 1
 if mode == 0:
     discriminator = Discriminator.Discriminator(input_channels=3, size=64).to(device)
 else:
@@ -70,6 +74,7 @@ val_accuraciesG = np.zeros(nb_epochs)
 val_accuraciesD = np.zeros(nb_epochs)
 val_maesG = np.zeros(nb_epochs)
 val_maesD = np.zeros(nb_epochs)
+val_ssimG = np.zeros(nb_epochs)
 
 
 
@@ -80,7 +85,6 @@ def criterionD_tr(predicted_proba, true_labels):
 
 
 def criterionG_tr(predicted_proba, true_labels, predicted_patch, true_patch):
-    weight_loss_adv = 0.001
     criterion_adv = nn.BCELoss()  # adversarial criterion -> compare proba with label (Binary Cross Entropy loss)
     criterion_rec = nn.MSELoss()  # reconstruction criterion -> compares patches (L2 loss)
     loss_adv = criterion_adv(predicted_proba, true_labels)
@@ -100,15 +104,13 @@ def criterionD_val(predicted_proba, true_labels):
 
 def criterionG_val(predicted_proba, true_labels, predicted_patch, true_patch):
     criterion_MAE = nn.L1Loss()
-    """metrics_SSIM = ignite.metrics.SSIM(data_range=255)
-    metric_SSIM.attach(default_evaluator, 'ssim')
-    state = default_evaluator.run([[predicted_patch, true_patch]])"""
+    ssimG = structural_similarity_index_measure(predicted_patch, true_patch)
 
     criterion_accuracy = torchmetrics.classification.BinaryAccuracy().to(device)
     lossG = criterionG_tr(predicted_proba, true_labels, predicted_patch, true_patch)
     maeG = criterion_MAE(predicted_proba, true_labels)
     accG = criterion_accuracy(predicted_proba, true_labels)
-    return lossG, maeG, accG
+    return lossG, maeG, accG, ssimG
 
 
 for epoch_nr in range(nb_epochs):
@@ -122,6 +124,7 @@ for epoch_nr in range(nb_epochs):
     running_accG_val = 0.0
     running_maeD_val = 0.0
     running_maeG_val = 0.0
+    running_ssimG_val = 0.0
     for batch_im_ori, _ in train_loader:
         ############################################
         ########### Train Discriminator ############
@@ -239,7 +242,7 @@ for epoch_nr in range(nb_epochs):
                 predicted_image_val = merge_patch_image(predicted_patch_val, batch_im_crop_val, 64, 64)
                 predicted_proba_val = discriminator(predicted_image_val)
 
-            lossG_val, maeG_val, accG_val = criterionG_val(predicted_proba_val, batch_labels_val, predicted_patch_val, batch_patch_ori_val)  # batch_data is the label here
+            lossG_val, maeG_val, accG_val, ssimG_val = criterionG_val(predicted_proba_val, batch_labels_val, predicted_patch_val, batch_patch_ori_val)  # batch_data is the label here
 
             # Keep running statistics (for each batch)
             running_lossG_val += lossG_val
@@ -248,6 +251,7 @@ for epoch_nr in range(nb_epochs):
             running_accD_val += accD_val
             running_maeG_val += maeG_val
             running_maeD_val += maeD_val
+            running_ssimG_val += ssimG_val
     # at each epoch -> validation
     val_lossG = running_lossG_val / len(val_loader.dataset)
     print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_lossG))
@@ -257,6 +261,7 @@ for epoch_nr in range(nb_epochs):
     val_accuraciesG[epoch_nr] = running_accG_val/(len(val_loader.dataset)/batch_size)
     val_maesD[epoch_nr] = running_maeD_val/(len(val_loader.dataset)/batch_size)
     val_maesG[epoch_nr] = running_maeG_val/(len(val_loader.dataset)/batch_size)
+    val_ssimG[epoch_nr] = running_ssimG_val/(len(val_loader.dataset)/batch_size)
 
 
 
@@ -293,6 +298,7 @@ plt.title("Value of the loss function for generator and discriminator (Validatio
 plt.subplot(2, 2, 3)
 plt.plot(np.linspace(1, nb_epochs, num=nb_epochs),  val_accuraciesG, 'r', label= "Generator")
 plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), val_accuraciesD, 'b', label= "Discriminator")
+plt.title("Accuracies of the discriminator (ability to detect false and true images) and the generator (ability to deceive the discriminator)")
 plt.xlabel("Epoch n°")
 plt.ylabel("Accuracy")
 plt.legend()
@@ -304,31 +310,10 @@ plt.ylabel("Mean absolute erorr")
 plt.legend()
 plt.show()
 
-
-# with torch.no_grad():
-#     for batch_im_ori, batch_im_crop in val_loader:
-#         # Put data on device
-#         batch_im_ori = batch_im_ori.to(device)
-#         batch_im_crop = batch_im_crop.to(device)
-#
-#         # Predict and get loss
-#         predicted_patch = generator(batch_im_crop)
-#         loss = criterion(predicted_patch, batch_im_ori)  # batch_data is the label here
-#
-#         # Keep running statistics
-#         running_loss += criterion(predicted_patch, batch_im_ori)  # batch_data = label
-#
-# val_loss = running_loss / len(val_loader.dataset)
-# print('>> VALIDATION: Epoch {} | val_loss: {:.4f}'.format(epoch_nr, val_loss))
-#
-#
-# val_lossesG[epoch_nr] = val_loss
-
-# print('Training finished')
-# testiter = iter(test_loader)
-# real_batch, example_labels = next(testiter)
-# batch_im_crop, batch_patch_ori = cropPatches(real_batch, 64, 64)
-# predicted_patch = generator(batch_im_crop.to(device))
+plt.plot(np.linspace(1, nb_epochs, num=nb_epochs), val_ssimG, 'r', label='Generator')
+plt.title('SSIM of the generated patch w.r.t. the original one')
+plt.legend()
+plt.show()
 
 # Show images
 #imshow(torchvision.utils.make_grid(batch_patch_ori.cpu()))
@@ -336,3 +321,20 @@ plt.show()
 
 torch.save(discriminator.state_dict(), './Trained models/discriminator_'+trial+'.pth')
 torch.save(generator.state_dict(), './Trained models/generator_'+trial+'.pth')
+
+concatenated_data = np.concatenate((tr_lossesG,
+tr_lossesD ,
+val_lossesG,
+val_lossesD,
+val_accuraciesG,
+val_accuraciesD,
+val_maesG,
+val_maesD,
+val_ssimG))
+
+concatenated_data = concatenated_data.reshape((9, nb_epochs))
+
+filename = "./data_arrays/" + trial
+
+with open(filename, 'wb') as f:
+    np.save(f, concatenated_data)
