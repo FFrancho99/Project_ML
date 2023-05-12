@@ -31,10 +31,20 @@ Its purpose is to generate visually plausible image to fill the missing content.
             -dog
             -wild
 
-## Installation
+## Clone Project
 
 git clone https://github.com/FFrancho99/Project_ML.git
-Packages to install:
+
+## Packages
+
+    numpy >= 1.23.5
+    matplotlib >= 3.7.1
+    torch >= 2.0.0
+    torchmetrics >= 0.11.4
+    torchvision >= 0.15.1
+    uuid >= 1.30
+    
+    
     
 
 ## Usage
