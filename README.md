@@ -16,20 +16,21 @@ Its purpose is to generate visually plausible image to fill the missing content.
 ![alt-text](Results/ResultsExample.png "Results")
 
 ## Files
-    main.py
-    useTrainedModels.py
-    preprocessing.py
-    Training.py
-    TrainigFunctions.py
-    read_data.py
-    -Model
-        Generator.py
-        Discriminator.py
     -dataset
         -afhq
             -cat
             -dog
             -wild
+    -Model
+        Generator.py
+        Discriminator.py
+    main.py
+    Preprocessing.py
+    read_data.py
+    README.md
+    Training.py
+    TrainigFunctions.py
+    useTrainedModels.py
 
 ## Clone Project
 
@@ -43,13 +44,9 @@ git clone https://github.com/FFrancho99/Project_ML.git
     torchmetrics >= 0.11.4
     torchvision >= 0.15.1
     uuid >= 1.30
-    
-    
-    
 
 ## Usage
 
-To run pretrained model:
 
 ## Sources
 Dataset: Animal Faces-HQ (AFHQ) from https://www.kaggle.com/datasets/andrewmvd/animal-faces
