@@ -34,7 +34,8 @@ Its purpose is to generate visually plausible image to fill the missing content.
 ## Installation
 
 git clone https://github.com/FFrancho99/Project_ML.git
-
+Packages to install:
+    
 
 ## Usage
 
