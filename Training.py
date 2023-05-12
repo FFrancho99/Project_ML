@@ -24,15 +24,15 @@ from Preprocessing import *
 
 ### Load dataset ###
 batch_size = 64
-mode = 1
+mode = 0
 if(mode == 1):
-    trial = "full_"
+    trial = "4000_full_"
 else:
-    trial = "patch_"
+    trial = "4000_patch_"
 train_folder = "dataset/afhq"
 nb_epochs = 10
 learningRate = 0.0001
-weight_loss_adv = 0.01
+weight_loss_adv = 0.5
 trial = trial+str(nb_epochs) + '_' + str(weight_loss_adv)
 
 # Get the iterative dataloaders for test and training data

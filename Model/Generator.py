@@ -18,7 +18,7 @@ class GeneratorOptions:
     def __init__(self):
         self.nC = 3  # rgb
         self.neF = 64  # nb encoder features
-        self.nbF = 1000  # nb bottleneck features
+        self.nbF = 4000  # nb bottleneck features
         self.ndF = 64  # nb decoder features
 
 class Generator(nn.Module):
