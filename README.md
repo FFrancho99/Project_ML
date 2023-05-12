@@ -10,7 +10,7 @@ For this, a Generative Adversarial Network (GAN) has been implemented.
 Its purpose is to generate visually plausible image to fill the missing content.
 
 ## Description
-
+![alt-text](Results/General_architecture.png "Architecture")
 ## Results
 
 ![alt-text](Results/ResultsExample.png "Results")
