@@ -9,7 +9,13 @@ This project aims at inpainting missing region(s) of an image based on the remai
 For this, a Generative Adversarial Network (GAN) has been implemented. 
 Its purpose is to generate visually plausible image to fill the missing content.
 
-## Table of Contents
+## Description
+
+## Results
+
+![alt-text](Results/ResultsExample.png "Results")
+
+## Files
     main.py
     useTrainedModels.py
     preprocessing.py
@@ -21,6 +27,9 @@ Its purpose is to generate visually plausible image to fill the missing content.
         Discriminator.py
     -dataset
         -afhq
+            -cat
+            -dog
+            -wild
 
 ## Installation
 
@@ -30,4 +39,7 @@ git clone https://github.com/FFrancho99/Project_ML.git
 ## Usage
 
 To run pretrained model:
+
+## Sources
+Dataset: Animal Faces-HQ (AFHQ) from https://www.kaggle.com/datasets/andrewmvd/animal-faces
     
