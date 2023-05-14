@@ -20,7 +20,7 @@ from torchvision.datasets import ImageNet
 from torchvision import transforms
 from Preprocessing import *
 
-trial = "full_10_0.001"
+trial = "patch_30_0.001"
 filename = "./data_arrays/" + trial
 
 data = np.load(filename)
