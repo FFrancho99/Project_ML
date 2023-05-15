@@ -6,8 +6,8 @@ Adeline Wantiez
 
 # Image Inpainting
 This project aims at inpainting missing region(s) of an image based on the remaining pixels using deep learning-based methods. 
-For this, a Generative Adversarial Network (GAN) has been implemented. 
-Its purpose is to generate visually plausible image to fill the missing content.
+For this, a Generative Adversarial Network (GAN) has been implemented. Its purpose is to generate visually plausible image to fill the missing content. 
+The considered dataset is the Animal Faces-HQ (AFHQ).
 
 ## Description
 ![alt-text](Results/General_architecture.png "Architecture")
@@ -24,7 +24,6 @@ Its purpose is to generate visually plausible image to fill the missing content.
     -Model
         Generator.py
         Discriminator.py
-    main.py
     Preprocessing.py
     read_data.py
     README.md
@@ -46,7 +45,7 @@ git clone https://github.com/FFrancho99/Project_ML.git
     uuid >= 1.30
 
 ## Usage
-
+Run Training.py file to create, train, validate and test the model
 
 ## Sources
 Dataset: Animal Faces-HQ (AFHQ) from https://www.kaggle.com/datasets/andrewmvd/animal-faces
