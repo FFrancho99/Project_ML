@@ -1,7 +1,7 @@
 ### Authors
 Robin Byl,
 Florence Franchomme,
-Nedid Ismaili,
+Nédid Ismaili,
 Adeline Wantiez
 
 # Image Inpainting
