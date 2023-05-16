@@ -24,6 +24,9 @@ The considered dataset is the Animal Faces-HQ (AFHQ).
     -Model
         Generator.py
         Discriminator.py
+    -Results
+        General_architecture.png
+        ResultsExample.png
     Preprocessing.py
     read_data.py
     README.md
