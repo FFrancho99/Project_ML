@@ -9,7 +9,7 @@ This project aims at inpainting missing region(s) of an image based on the remai
 For this, a Generative Adversarial Network (GAN) has been implemented. Its purpose is to generate visually plausible image to fill the missing content. 
 The considered dataset is the Animal Faces-HQ (AFHQ).  
 
-To run the code cf. Usage section
+To run the code go to Usage section.
 
 ## Description
 ![alt-text](Results/General_architecture.png "Architecture")
