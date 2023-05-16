@@ -12,9 +12,9 @@ The considered dataset is the Animal Faces-HQ (AFHQ).
 ## Description
 ![alt-text](Results/General_architecture.png "Architecture")
 ## Results
-Results when feeding the whole image to the discriminator:
+Results when feeding the whole image to the discriminator:__
 ![alt-text](Results/Results_All.png "Results")
-Results when feeding the patch to the discriminator:
+Results when feeding the patch to the discriminator:__
 ![alt-text](Results/Results_patch.png "Results")
 ## Files
     -dataset
