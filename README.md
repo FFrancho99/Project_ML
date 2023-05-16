@@ -49,7 +49,9 @@ git clone https://github.com/FFrancho99/Project_ML.git
     uuid >= 1.30
 
 ## Usage
-Run Training.py file to create, train, validate and test the model
+Run Training.py file to create, train, validate and test the model. If you already have a saved model then run useTrainedModels.py.
+
+
 
 ## Sources
 Dataset: Animal Faces-HQ (AFHQ) from https://www.kaggle.com/datasets/andrewmvd/animal-faces
