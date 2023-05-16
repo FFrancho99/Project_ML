@@ -30,6 +30,7 @@ Results when feeding the patch to the discriminator:
     -Results
         General_architecture.png
         ResultsExample.png
+    Final_figures.py
     Preprocessing.py
     read_data.py
     README.md
@@ -51,6 +52,7 @@ git clone https://github.com/FFrancho99/Project_ML.git
     uuid >= 1.30
 
 ## Usage
+Cuda is required to run the code but if you don't have it, change line 49 of Training.py 'cuda:0' to 'cpu'.  
 Run Training.py file to create, train, validate and test the model. If you already have a saved model then run useTrainedModels.py.
 
 
